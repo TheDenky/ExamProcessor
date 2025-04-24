@@ -112,7 +112,7 @@ logo = Image.open("img/logoCepre.png")
 logo = logo.resize((200, 150))
 logoImg = ImageTk.PhotoImage(logo)
 logoLabel = ttk.Label(loginFrame, image=logoImg)
-logoLabel.pack(pady=10)
+logoLabel.pack(pady=50)
 
 #add password label
 labelFrame = ttk.Frame(loginFrame)
@@ -128,12 +128,12 @@ ttk.Label(
 #add password entry
 passFrame = ttk.Frame(loginFrame)
 passFrame.pack(fill=X, pady=10)
-passEntry = ttk.Entry(passFrame, width=30, show="*", font=("Georgia", 20), justify="center")
-passEntry.pack(side=LEFT, fill=X, expand=YES)
+passEntry = ttk.Entry(passFrame, width=10, show="*", font=("Georgia", 20), justify="center")
+passEntry.pack(side=LEFT, padx=5, expand=YES)
 
 #Button to change the actual theme
-themeButton = ttk.Button(loginFrame, text="ACCEDER", style="primary-outline", command=verificarCredenciales)
-themeButton.pack(pady = 10)
+themeButton = ttk.Button(loginFrame, text="ACCEDER", style="primary-outline", command=verificarCredenciales, width=27)
+themeButton.pack(pady = 30)
 
 #ttk.Button(login, text="Deshabilitar Pestaña 2", bootstyle="danger", command=deshabilitar).pack(pady=10)
 #ttk.Button(login, text="Habilitar Pestaña 2", bootstyle="success", command=habilitar).pack(pady=10)
@@ -231,5 +231,22 @@ messageButton = ttk.Button(
     studentDataFrame, text="Upload", bootstyle="success-outline", command=seleccionarStudents
 )
 messageButton.pack(side=LEFT, padx=5)
+
+#Process button
+primaryButton = ttk.Button(
+    tab2,
+    text="PROCESS",
+    bootstyle="success-outline",
+    width=20
+)
+primaryButton.pack(pady=10)
+
+#add a footer
+footer = ttk.Label(
+    app,
+    text="Centro Preuniversitario de la UNAJMA",
+    bootstyle="inverse-secondary"
+)
+footer.pack(side=BOTTOM,fill=X, pady=5)
 
 app.mainloop()

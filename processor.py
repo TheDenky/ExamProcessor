@@ -1,0 +1,275 @@
+import numpy as np
+import pandas as pd
+
+identifierFileDirection = 'scannerData/Ident-CEPRE-25-I.dat'
+responsesFileDirection = 'scannerData/Resp-CEPRE-25-I.dat'
+keyFileDirection = 'scannerData/Clave-CEPRE-25-I.dat'
+studentsFileDirection = "studentsData/students.xls"
+questionsQuantity = 60
+correctAnswerValue = 5
+failedAnswerValue = -0.1
+empyAnswerValue = 0.5
+
+def filePaths(identifier, responses, key, students):
+    identifierFileDirection = identifier
+    responsesFileDirection = responses
+    keyFileDirection = key
+    studentsFileDirection = students
+
+# Lista para almacenar los datos procesados
+identifierData = []
+responsesData = []
+keyData = []
+
+studentsData = []
+resultStudentData = None
+
+processData = []
+resultData = None
+
+try:
+    # Abre el archivo en modo de lectura
+    with open(identifierFileDirection, 'r') as file:
+        print("Identifier Opened!")
+        data = []
+        for line in file:
+            # Elimina los saltos de línea y espacios extraños
+            line = line.strip()
+            #print(line)
+
+            model = line[:3]  # Primer campo Modelo de ficha (por ejemplo, '301')
+            enum = line[3:9]  # Segundo campo Enumeracion de la ficha (por ejemplo, '000001')
+            campo3 = line[9:21]  # Tercer campo (por ejemplo, '0001020225001')
+            campo4 = line[21:22]  # Cuarto campo (por ejemplo, 'Y')
+            campo5 = line[24:28]  # Quinto campo (por ejemplo, '5383')
+            campo6 = line[33:34]  # Sexto campo (por ejemplo, '1')
+            campo7 = line[38:39]  # Septimo campo (por ejemplo, 'S')
+            campo8 = line[39:40]  # Octavo campo "verificar"
+            idTab = line[40:46]  # Noveno campo identificador de ficha (por ejemplo, '011093')
+            dni = line[46:54]  # Decimo campo dni (por ejemplo, '73965347')
+            topic = line[54:55]  # Onceavo campo tema (por ejemplo, "S")
+            # Imprimir cada campo
+            #print(
+            #    f"model: {model}, enum: {enum}, Campo3: {campo3}, "
+            #    f"Campo4: {campo4}, Campo5: {campo5}, Campo6: {campo6}, "
+            #    f"Campo7: {campo7}, Campo8: {campo8}, Campo9: {idTab},"
+            #    f"Dni:  {dni}, topic: {topic}")
+            # Almacenar los valores como una lista
+            data.append([model, enum, campo3, campo4, campo5, campo6, campo7, campo8, idTab, dni, topic])
+        # Convertir la lista a un DataFrame
+        identifierData = pd.DataFrame(data, columns=["model", "enum", "campo3", "campo4",
+                                                     "campo5", "campo6", "campo7", "campo8",
+                                                     "idTab", "dni", "topic"])
+        #print(identifierData)
+except Exception as e:
+    print(f"Ocurrió un error al abrir el archivo {identifierFileDirection}: {e} ")
+
+print(identifierData)
+
+try:
+    # Abre el archivo en modo de lectura
+    with open(responsesFileDirection, 'r') as file:
+        print("Responses Opened!")
+        data = []
+        for line in file:
+            # Elimina los saltos de línea y espacios extraños
+            line = line.strip()
+            #print(line)
+
+            if (len(line) < 10):
+                continue
+
+            model = line[:3]  # Primer campo Modelo de ficha (por ejemplo, '301')
+            enum = line[3:9]  # Segundo campo Enumeracion de la ficha (por ejemplo, '000001')
+            campo3 = line[9:21]  # Tercer campo (por ejemplo, '0001020225001')
+            campo4 = line[21:22]  # Cuarto campo (por ejemplo, 'Y')
+            campo5 = line[24:28]  # Quinto campo (por ejemplo, '5383')
+            campo6 = line[33:34]  # Sexto campo (por ejemplo, '1')
+            campo7 = line[38:39]  # Septimo campo (por ejemplo, 'S')
+            campo8 = line[39:40]  # Octavo campo "verificar"
+            idTab = line[40:46]  # Noveno campo identificador de ficha (por ejemplo, '011093')
+            topic = line[46:47]  # Decimo campo tema (por ejemplo, "S")
+            responses = line[48:(48 + questionsQuantity)]  # Onceavo campo respuestas por ejemplo "A"
+
+            # Imprimir cada campo
+            #print(
+            #    f"model: {model}, enum: {enum}, Campo3: {campo3}, "
+            #    f"Campo4: {campo4}, Campo5: {campo5}, Campo6: {campo6}, "
+            #    f"Campo7: {campo7}, Campo8: {campo8}, idTab: {idTab},"
+            #    f"Topic:  {topic}, Responses: {responses}")
+            data.append([model, enum, campo3, campo4, campo5, campo6, campo7, campo8, idTab, topic, responses])
+        # Convertir la lista a un DataFrame
+        responsesData = pd.DataFrame(data, columns=["model", "enum", "campo3", "campo4",
+                                                         "campo5", "campo6", "campo7", "campo8",
+                                                         "idTab", "topic", "responses"])
+        # Mostrar el arreglo de NumPy
+        #print(responsesData)
+except Exception as e:
+    print(f"Ocurrió un error al abrir el archivo {responsesFileDirection}: {e} ")
+
+print(responsesData)
+
+try:
+    # Abre el archivo en modo de lectura
+    with open(keyFileDirection, 'r') as file:
+        print("Key Opened!")
+        data = []
+        for line in file:
+            # Elimina los saltos de línea y espacios extraños
+            line = line.strip()
+            #print(line)
+
+            if(len(line) < 10):
+                continue
+
+            model = line[:3]  # Primer campo Modelo de ficha (por ejemplo, '301')
+            enum = line[3:9]  # Segundo campo Enumeracion de la ficha (por ejemplo, '000001')
+            campo3 = line[9:21]  # Tercer campo (por ejemplo, '0001020225001')
+            campo4 = line[21:22]  # Cuarto campo (por ejemplo, 'Y')
+            campo5 = line[24:28]  # Quinto campo (por ejemplo, '5383')
+            campo6 = line[33:34]  # Sexto campo (por ejemplo, '1')
+            campo7 = line[38:39]  # Septimo campo (por ejemplo, 'S')
+            campo8 = line[39:40]  # Octavo campo "verificar"
+            idTab = line[40:46]  # Noveno campo identificador de ficha (por ejemplo, '011093')
+            topic = line[46:47]  # Decimo campo tema (por ejemplo, "S")
+            keyResponses = line[48:(48 + questionsQuantity)]  # Onceavo campo clave de respuestas por ejemplo "A"
+
+            # Imprimir cada campo
+            #print(
+            #    f"model: {model}, enum: {enum}, Campo3: {campo3}, "
+            #    f"Campo4: {campo4}, Campo5: {campo5}, Campo6: {campo6}, "
+            #    f"Campo7: {campo7}, Campo8: {campo8}, idTab: {idTab},"
+            #    f"Topic:  {topic}, KeyResponses: {keyResponses}")
+            data.append([model, enum, campo3, campo4, campo5, campo6, campo7, campo8, idTab, topic, keyResponses])
+        # Convertir la lista a un DataFrame
+        keyData = pd.DataFrame(data, columns=["model", "enum", "campo3", "campo4",
+                                                    "campo5", "campo6", "campo7", "campo8",
+                                                    "idTab", "topic", "keyResponses"])
+        # Mostrar el arreglo de NumPy
+        #print(keyData)
+except Exception as e:
+    print(f"Ocurrió un error al abrir el archivo {keyFileDirection}: {e} ")
+
+print(keyData)
+
+def excecuteCalification():
+    for rowKey in keyData.itertuples():
+        print(f"Índice: {rowKey.Index}")  # El índice de la fila
+        print(f"Topic:{rowKey.topic} , KeyResponses:{rowKey.keyResponses} ")
+        for rowResponses in responsesData.itertuples():
+            if(rowKey.topic == rowResponses.topic):
+                correct = 0
+                failed = 0
+                empty = 0
+                result = 0
+                print(f"Topic:{rowResponses.topic} , Responses:{rowResponses.responses}, Enum: {rowResponses.enum} ")
+                # Itera sobre cada carácter por índice
+                for i in range(len(rowResponses.responses)):
+                    #print(f"Índice {i}: Key: {rowKey.keyResponses[i]} Answer: {rowResponses.responses[i]}")
+                    if(rowResponses.responses[i] == rowKey.keyResponses[i]):
+                        correct+=1
+                    elif(rowResponses.responses[i] == " "):
+                        #print(f"Vacio {i}")
+                        #empty+=1
+                        continue
+                    else: failed+=1
+
+                print(f"Correct: {correct}")
+                print(f"Failed: {failed}")
+                empty = questionsQuantity - correct - failed
+                print(f"Empty: {empty}")
+                result = (correct * correctAnswerValue) + (failed * failedAnswerValue) + (empty * empyAnswerValue)
+                print(f"Result: {result}")
+                processData.append([rowResponses.idTab, correct, failed, empty, result])
+                print("************************")
+
+        print(".....................")
+
+def contrastCalificationId():
+    # Convertir la lista a un DataFrame
+    result = pd.DataFrame(processData, columns=["idTab", "correct", "failed", "empty" ,  "result"])
+    resultData = pd.merge(result, identifierData, on='idTab', how='inner')
+    print(resultData)
+    return resultData
+
+def readStudentsData():
+    read = pd.read_excel(studentsFileDirection)
+    return read
+    #print(studentsData)
+
+# Función para comparar las cadenas carácter por carácter y contar coincidencias
+def comparar_caracteres(dni1, dni2):
+    coincidencias = 0
+    for c1, c2 in zip(dni1, dni2):  # Compara los caracteres uno por uno
+        if c1 == c2:
+            coincidencias += 1
+    return coincidencias
+
+def searchMatchAprox(df1, df2, umbral):
+    resultados = []
+    for dni1 in df1['dni']:
+        mejor_coincidencia = None
+        coincidencias_max = 0
+        for dni2 in df2['DNI']:
+            coincidencias = comparar_caracteres(dni1, dni2)
+            if coincidencias >= umbral and coincidencias > coincidencias_max:
+                coincidencias_max = coincidencias
+                mejor_coincidencia = dni2
+        resultados.append(mejor_coincidencia)
+    return resultados
+
+def contrastCalificationDni(resultData, studentsData):
+    # Convertir ambas columnas a tipo string (str)
+    resultData['dni'] = resultData['dni'].astype(str)
+    studentsData['DNI'] = studentsData['DNI'].astype(str)
+    resultStudentData = pd.merge(resultData, studentsData, left_on='dni', right_on='DNI', how='right')
+
+    result_left  = pd.merge(resultData, studentsData, left_on='dni', right_on='DNI', how='left', indicator=True)
+    result_left_no_match = result_left [result_left ['_merge'] == 'left_only']
+    print("\nDatos de df1 sin coincidencias en df2:")
+    print(result_left_no_match)
+    # Crear una copia explícita de result_left_no_match para evitar el error
+    result_left_no_match = result_left_no_match.copy()
+
+    # Realizar un right join para obtener datos de studentsData sin coincidencias en resultData
+    students_right = pd.merge(resultData, studentsData, left_on='dni', right_on='DNI', how='right', indicator=True)
+
+    # Filtrar los datos de studentsData que no tienen coincidencias en resultData (right_only)
+    students_right_no_match = students_right[students_right['_merge'] == 'right_only']
+    print("\nDatos de studentsData sin coincidencias en resultData:")
+    print(students_right_no_match)
+
+    #Buscar posibles Resultados.
+    print("Resultados aproximados")
+    lista = searchMatchAprox(result_left_no_match, students_right_no_match, 6)
+    print(lista)
+
+    # Agregar los resultados al DataFrame original como la columna 'Coincidencia'
+    result_left_no_match.loc[:, 'MejorCoincidencia'] = lista
+
+    # Combinar los datos no coincidentes de ambos DataFrames
+    no_match_data = pd.concat([result_left_no_match, students_right_no_match], ignore_index=True)
+    print("\nDatos que no coincidieron en el inner join:")
+    print(no_match_data)
+    no_match_data.to_excel("Corregir.xlsx", index=False)
+
+    return resultStudentData
+    #print(resultStudentData)
+
+print("Imprimiendo Keys:")
+excecuteCalification()
+print(len(processData))
+print(processData)
+resultData = contrastCalificationId()
+studentsData = readStudentsData()
+print(resultData)
+
+resultStudentData = contrastCalificationDni(resultData, studentsData)
+print(resultStudentData)
+
+# Seleccionar solo las columnas que te interesan
+columnas_deseadas = ['DNI', 'NOMBRES', 'APELLIDOS', 'CARRERA', 'result']
+df_filtrado = resultStudentData[columnas_deseadas]
+
+resultStudentData.to_excel("Resultado Crudo.xlsx", index=False)
+df_filtrado.to_excel("Resultado Impresión.xlsx", index=False)

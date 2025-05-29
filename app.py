@@ -2,8 +2,10 @@ import ttkbootstrap as ttk
 from PIL import Image, ImageTk
 from PIL.ImageOps import expand
 from ttkbootstrap.constants import *
-import password
 from tkinter import filedialog
+
+import password
+import processorFunctions
 
 #Creación de ventana principal
 app = ttk.Window(themename="cosmo")
@@ -24,6 +26,25 @@ notebook.add(tab2, text="Processor", state="disabled")
 # Botones en tab1 para controlar tab2
 #def deshabilitar():
 #    notebook.tab(1, state="disabled")
+
+#*********** Variables para uso de procesamiento ************************
+identifierFileDirection = ''
+responsesFileDirection = ''
+keyFileDirection = ''
+studentsFileDirection = ''
+questionsQuantity = 60
+correctAnswerValue = 5
+failedAnswerValue = -0.1
+empyAnswerValue = 0.5
+
+# Listas para almacenar los datos procesados
+identifierData = []
+responsesData = []
+keyData = []
+studentsData = []
+resultStudentData = None
+processData = []
+resultData = None
 
 def verificarCredenciales():
     text = ""
@@ -78,7 +99,17 @@ def seleccionarIdentifier():
     )
     if archivo:
         identifierField.delete(0, 'end')
-        identifierField.insert(0, archivo)
+        try:
+            identifierData = processorFunctions.openIdentifier(archivo)
+        except Exception as e:
+            identifierField.delete(0, 'end')
+            print(f"Ocurrió un error al abrir el archivo {archivo}: {e} ")
+        if identifierData.empty:
+            print("Fallo al cargar identificadores.")
+            showMessage("Archivo incorrecto!")
+        else:
+            identifierField.insert(0, archivo)
+
 
 def seleccionarResponses():
     archivo = filedialog.askopenfilename(
@@ -87,7 +118,16 @@ def seleccionarResponses():
     )
     if archivo:
         responsesField.delete(0, 'end')
-        responsesField.insert(0, archivo)
+        try:
+            responsesData = processorFunctions.openResponses(archivo, questionsQuantity)
+        except Exception as e:
+            responsesField.delete(0, 'end')
+            print(f"Ocurrió un error al abrir el archivo {archivo}: {e} ")
+        if responsesData.empty:
+            print("Fallo al cargar respuestas.")
+            showMessage("Archivo incorrecto!")
+        else:
+            responsesField.insert(0, archivo)
 
 def seleccionarKey():
     archivo = filedialog.askopenfilename(
@@ -96,7 +136,16 @@ def seleccionarKey():
     )
     if archivo:
         keyField.delete(0, 'end')
-        keyField.insert(0, archivo)
+        try:
+            keyData = processorFunctions.openKeys(archivo, questionsQuantity)
+        except Exception as e:
+            keyField.delete(0, 'end')
+            print(f"Ocurrió un error al abrir el archivo {archivo}: {e} ")
+        if keyData.empty:
+            print("Fallo al cargar claves.")
+            showMessage("Archivo incorrecto!")
+        else:
+            keyField.insert(0, archivo)
 
 def seleccionarStudents():
     archivo = filedialog.askopenfilename(

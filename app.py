@@ -92,7 +92,7 @@ def cerrarSesion():
     notebook.tab(1, state="disabled")
     notebook.tab(0, state="normal")
 
-def seleccionarIdentifier():
+def selectIdentifier():
     archivo = filedialog.askopenfilename(
         title="Selecciona un archivo",
         filetypes=[("Archivos de datos", "*.dat"), ("Todos los archivos", "*.*")]
@@ -111,7 +111,7 @@ def seleccionarIdentifier():
             identifierField.insert(0, archivo)
 
 
-def seleccionarResponses():
+def selectResponses():
     archivo = filedialog.askopenfilename(
         title="Selecciona un archivo",
         filetypes=[("Archivos de datos", "*.dat"), ("Todos los archivos", "*.*")]
@@ -129,7 +129,7 @@ def seleccionarResponses():
         else:
             responsesField.insert(0, archivo)
 
-def seleccionarKey():
+def selectKey():
     archivo = filedialog.askopenfilename(
         title="Selecciona un archivo",
         filetypes=[("Archivos de datos", "*.dat"), ("Todos los archivos", "*.*")]
@@ -147,14 +147,25 @@ def seleccionarKey():
         else:
             keyField.insert(0, archivo)
 
-def seleccionarStudents():
+def selectStudents():
     archivo = filedialog.askopenfilename(
         title="Selecciona un archivo",
         filetypes=[("Archivos de excel", "*.xls*"), ("Todos los archivos", "*.*")]
     )
     if archivo:
         studentDataField.delete(0, 'end')
+        try:
+            studentsData = processorFunctions.openStudentsData(archivo)
+        except Exception as e:
+            studentDataField.delete(0, 'end')
+            print(f"Ocurrió un error al abrir el archivo {archivo}: {e} ")
         studentDataField.insert(0, archivo)
+
+def processAll():
+    print("Calificando fichas ... ")
+    print("Contrastando fichas... ")
+    print("Contrastando DNIs... ")
+    print("Resolviendo Match... ")
 
 # Cargar imagen usando PIL
 logo = Image.open("img/logoCepre.png")
@@ -216,7 +227,7 @@ identifierField = ttk.Entry(IscannerFrame, width=30)
 identifierField.pack(side=LEFT, padx=5, fill=X, expand=YES)
 #add a button to show the message
 messageButton = ttk.Button(
-    IscannerFrame, text="Upload", bootstyle="success-outline", command=seleccionarIdentifier
+    IscannerFrame, text="Upload", bootstyle="success-outline", command=selectIdentifier
 )
 messageButton.pack(side=LEFT, padx=5)
 
@@ -234,7 +245,7 @@ responsesField = ttk.Entry(RscannerFrame, width=30)
 responsesField.pack(side=LEFT, padx=5, fill=X, expand=YES)
 #add a button to show the message
 messageButton = ttk.Button(
-    RscannerFrame, text="Upload", bootstyle="success-outline", command=seleccionarResponses
+    RscannerFrame, text="Upload", bootstyle="success-outline", command=selectResponses
 )
 messageButton.pack(side=LEFT, padx=5)
 
@@ -252,7 +263,7 @@ keyField = ttk.Entry(KscannerFrame, width=30)
 keyField.pack(side=LEFT, padx=5, fill=X, expand=YES)
 #add a button to show the message
 messageButton = ttk.Button(
-    KscannerFrame, text="Upload", bootstyle="success-outline", command=seleccionarKey
+    KscannerFrame, text="Upload", bootstyle="success-outline", command=selectKey
 )
 messageButton.pack(side=LEFT, padx=5)
 
@@ -277,7 +288,7 @@ studentDataField = ttk.Entry(studentDataFrame, width=30)
 studentDataField.pack(side=LEFT, padx=5, fill=X, expand=YES)
 #add a button to upload the file
 messageButton = ttk.Button(
-    studentDataFrame, text="Upload", bootstyle="success-outline", command=seleccionarStudents
+    studentDataFrame, text="Upload", bootstyle="success-outline", command=selectStudents
 )
 messageButton.pack(side=LEFT, padx=5)
 
@@ -286,7 +297,8 @@ primaryButton = ttk.Button(
     tab2,
     text="PROCESS",
     bootstyle="success-outline",
-    width=20
+    width=20,
+    command=processAll
 )
 primaryButton.pack(pady=10)
 

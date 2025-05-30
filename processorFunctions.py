@@ -125,6 +125,11 @@ def openKeys(keyFileDirection, questionsQuantity):
         # print(keyData)
         return keyData
 
+def openStudentsData(studentsFileDirection):
+    read = pd.read_excel(studentsFileDirection)
+    return read
+    #print(studentsData)
+
 def excecuteCalification(keyData, responsesData, questionsQuantity, correctAnswerValue, failedAnswerValue, empyAnswerValue):
     processData = []
     for rowKey in keyData.itertuples():

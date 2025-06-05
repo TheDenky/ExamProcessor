@@ -2,7 +2,7 @@ import pandas as pd
 
 #Función para abrir y procesar el archivo identificador.
 def openIdentifier(identifierFileDirection):
-
+    #identifierData = []
     # Abre el archivo en modo de lectura
     with open(identifierFileDirection, 'r') as file:
         print("Identifier Opened!")
@@ -39,11 +39,12 @@ def openIdentifier(identifierFileDirection):
         identifierData = pd.DataFrame(data, columns=["model", "enum", "campo3", "campo4",
                                                      "campo5", "campo6", "campo7", "campo8",
                                                      "idTab", "dni", "topic"])
-        print(identifierData)
+        #print(identifierData)
         return identifierData
 
 #Función para abrir y procesar el archivo identificador.
 def openResponses(responsesFileDirection, questionsQuantity):
+    responsesData = []
     # Abre el archivo en modo de lectura
     with open(responsesFileDirection, 'r') as file:
         print("Responses Opened!")
@@ -77,15 +78,16 @@ def openResponses(responsesFileDirection, questionsQuantity):
             #    f"Topic:  {topic}, Responses: {responses}")
             data.append([model, enum, campo3, campo4, campo5, campo6, campo7, campo8, idTab, topic, responses])
         # Convertir la lista a un DataFrame
-        responsesData = pd.DataFrame(data, columns=["model", "enum", "campo3", "campo4",
+            responsesData = pd.DataFrame(data, columns=["model", "enum", "campo3", "campo4",
                                                     "campo5", "campo6", "campo7", "campo8",
                                                     "idTab", "topic", "responses"])
         # Mostrar el arreglo de NumPy
-        print(responsesData)
-        return responsesData
+            #print(responsesData)
+    return responsesData
 
 #Función para abrir y procesar el archivo de claves.
 def openKeys(keyFileDirection, questionsQuantity):
+    keyData = []
     # Abre el archivo en modo de lectura
     with open(keyFileDirection, 'r') as file:
         print("Key Opened!")
@@ -141,7 +143,7 @@ def excecuteCalification(keyData, responsesData, questionsQuantity, correctAnswe
                 failed = 0
                 empty = 0
                 result = 0
-                print(f"Topic:{rowResponses.topic} , Responses:{rowResponses.responses}, Enum: {rowResponses.enum} ")
+                #print(f"Topic:{rowResponses.topic} , Responses:{rowResponses.responses}, Enum: {rowResponses.enum} ")
                 # Itera sobre cada carácter por índice
                 for i in range(len(rowResponses.responses)):
                     #print(f"Índice {i}: Key: {rowKey.keyResponses[i]} Answer: {rowResponses.responses[i]}")
@@ -153,14 +155,81 @@ def excecuteCalification(keyData, responsesData, questionsQuantity, correctAnswe
                         continue
                     else: failed+=1
 
-                print(f"Correct: {correct}")
-                print(f"Failed: {failed}")
+                #print(f"Correct: {correct}")
+                #print(f"Failed: {failed}")
                 empty = questionsQuantity - correct - failed
-                print(f"Empty: {empty}")
+                #print(f"Empty: {empty}")
                 result = (correct * correctAnswerValue) + (failed * failedAnswerValue) + (empty * empyAnswerValue)
-                print(f"Result: {result}")
+                #print(f"Result: {result}")
                 processData.append([rowResponses.idTab, correct, failed, empty, result])
-                print("************************")
+                #print("************************")
 
         print(".....................")
+    print("Calification done!")
     return processData
+
+def contrastCalificationId(processData, identifierData):
+    resultData = pd.merge(processData, identifierData, on='idTab', how='inner')
+    #print(resultData)
+    return resultData
+
+# Función para comparar las cadenas carácter por carácter y contar coincidencias
+def characterMarch(dni1, dni2):
+    coincidencias = 0
+    for c1, c2 in zip(dni1, dni2):  # Compara los caracteres uno por uno
+        if c1 == c2:
+            coincidencias += 1
+    return coincidencias
+
+def searchMatchAprox(df1, df2, umbral):
+    resultados = []
+    for dni1 in df1['dni']:
+        mejor_coincidencia = None
+        coincidencias_max = 0
+        for dni2 in df2['DNI']:
+            coincidencias = characterMarch(dni1, dni2)
+            if coincidencias >= umbral and coincidencias > coincidencias_max:
+                coincidencias_max = coincidencias
+                mejor_coincidencia = dni2
+        resultados.append(mejor_coincidencia)
+    return resultados
+
+def contrastCalificationDni(resultData, studentsData):
+    # Convertir ambas columnas a tipo string (str)
+    resultData['dni'] = resultData['dni'].astype(str)
+    studentsData['DNI'] = studentsData['DNI'].astype(str)
+    resultStudentData = pd.merge(resultData, studentsData, left_on='dni', right_on='DNI', how='right')
+
+    resultStudentData.to_excel("ResultadoCrudo.xlsx", index=False)
+    return resultStudentData
+    #print(resultStudentData)
+
+def lookingForNotMatch(resultData, studentsData):
+    result_left = pd.merge(resultData, studentsData, left_on='dni', right_on='DNI', how='left', indicator=True)
+    result_left_no_match = result_left[result_left['_merge'] == 'left_only']
+    print("\nDatos de df1 sin coincidencias en df2:")
+    print(result_left_no_match)
+    # Crear una copia explícita de result_left_no_match para evitar el error
+    result_left_no_match = result_left_no_match.copy()
+
+    # Realizar un right join para obtener datos de studentsData sin coincidencias en resultData
+    students_right = pd.merge(resultData, studentsData, left_on='dni', right_on='DNI', how='right', indicator=True)
+
+    # Filtrar los datos de studentsData que no tienen coincidencias en resultData (right_only)
+    students_right_no_match = students_right[students_right['_merge'] == 'right_only']
+    print("\nDatos de studentsData sin coincidencias en resultData:")
+    print(students_right_no_match)
+
+    # Buscar posibles Resultados.
+    print("Resultados aproximados")
+    lista = searchMatchAprox(result_left_no_match, students_right_no_match, 6)
+    print(lista)
+
+    # Agregar los resultados al DataFrame original como la columna 'Coincidencia'
+    result_left_no_match.loc[:, 'MejorCoincidencia'] = lista
+
+    # Combinar los datos no coincidentes de ambos DataFrames
+    no_match_data = pd.concat([result_left_no_match, students_right_no_match], ignore_index=True)
+    print("\nDatos que no coincidieron en el inner join:")
+    print(no_match_data)
+    no_match_data.to_excel("Corregir.xlsx", index=False)

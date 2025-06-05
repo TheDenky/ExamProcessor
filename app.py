@@ -1,3 +1,4 @@
+import pandas as pd
 import ttkbootstrap as ttk
 from PIL import Image, ImageTk
 from PIL.ImageOps import expand
@@ -93,6 +94,7 @@ def cerrarSesion():
     notebook.tab(0, state="normal")
 
 def selectIdentifier():
+    global identifierData
     archivo = filedialog.askopenfilename(
         title="Selecciona un archivo",
         filetypes=[("Archivos de datos", "*.dat"), ("Todos los archivos", "*.*")]
@@ -100,7 +102,8 @@ def selectIdentifier():
     if archivo:
         identifierField.delete(0, 'end')
         try:
-            identifierData = processorFunctions.openIdentifier(archivo)
+            identifierData = pd.DataFrame(processorFunctions.openIdentifier(archivo))
+            print("IDENTIFIER PRINT:",identifierData)
         except Exception as e:
             identifierField.delete(0, 'end')
             print(f"Ocurrió un error al abrir el archivo {archivo}: {e} ")
@@ -112,6 +115,7 @@ def selectIdentifier():
 
 
 def selectResponses():
+    global responsesData
     archivo = filedialog.askopenfilename(
         title="Selecciona un archivo",
         filetypes=[("Archivos de datos", "*.dat"), ("Todos los archivos", "*.*")]
@@ -119,7 +123,8 @@ def selectResponses():
     if archivo:
         responsesField.delete(0, 'end')
         try:
-            responsesData = processorFunctions.openResponses(archivo, questionsQuantity)
+            responsesData = pd.DataFrame(processorFunctions.openResponses(archivo, questionsQuantity))
+            print("RESPONSES PRINT:\n", responsesData)
         except Exception as e:
             responsesField.delete(0, 'end')
             print(f"Ocurrió un error al abrir el archivo {archivo}: {e} ")
@@ -130,6 +135,7 @@ def selectResponses():
             responsesField.insert(0, archivo)
 
 def selectKey():
+    global keyData
     archivo = filedialog.askopenfilename(
         title="Selecciona un archivo",
         filetypes=[("Archivos de datos", "*.dat"), ("Todos los archivos", "*.*")]
@@ -137,7 +143,8 @@ def selectKey():
     if archivo:
         keyField.delete(0, 'end')
         try:
-            keyData = processorFunctions.openKeys(archivo, questionsQuantity)
+            keyData = pd.DataFrame(processorFunctions.openKeys(archivo, questionsQuantity))
+            print("KEY PRINT:\n", keyData)
         except Exception as e:
             keyField.delete(0, 'end')
             print(f"Ocurrió un error al abrir el archivo {archivo}: {e} ")
@@ -148,6 +155,7 @@ def selectKey():
             keyField.insert(0, archivo)
 
 def selectStudents():
+    global studentsData
     archivo = filedialog.askopenfilename(
         title="Selecciona un archivo",
         filetypes=[("Archivos de excel", "*.xls*"), ("Todos los archivos", "*.*")]
@@ -156,15 +164,28 @@ def selectStudents():
         studentDataField.delete(0, 'end')
         try:
             studentsData = processorFunctions.openStudentsData(archivo)
+            print("Students file opened!\n", studentsData)
         except Exception as e:
             studentDataField.delete(0, 'end')
             print(f"Ocurrió un error al abrir el archivo {archivo}: {e} ")
         studentDataField.insert(0, archivo)
 
 def processAll():
+    global processData, resultData, identifierData, resultStudentData, studentsData
+    global responsesData, keyData, questionsQuantity, correctAnswerValue, failedAnswerValue, empyAnswerValue
+
     print("Calificando fichas ... ")
+    processData = processorFunctions.excecuteCalification(keyData,responsesData,questionsQuantity,correctAnswerValue,failedAnswerValue,empyAnswerValue)
+    processData = pd.DataFrame(processData, columns=["idTab", "correct", "failed", "empty" ,  "result"])
+    print("process Data\n", processData)
+
     print("Contrastando fichas... ")
+    resultData = processorFunctions.contrastCalificationId(processData, identifierData)
+    print("Result Data\n", resultData)
+
     print("Contrastando DNIs... ")
+    resultStudentData = processorFunctions.contrastCalificationDni(resultData,studentsData)
+
     print("Resolviendo Match... ")
 
 # Cargar imagen usando PIL

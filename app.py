@@ -47,6 +47,8 @@ resultStudentData = None
 processData = []
 resultData = None
 
+processName = "SEG_ORDINARIO_I_2025"
+
 def verificarCredenciales():
     text = ""
     pwd = passEntry.get()
@@ -184,9 +186,10 @@ def processAll():
     print("Result Data\n", resultData)
 
     print("Contrastando DNIs... ")
-    resultStudentData = processorFunctions.contrastCalificationDni(resultData,studentsData)
+    resultStudentData = processorFunctions.contrastCalificationDni(resultData,studentsData, processName)
 
     print("Resolviendo Match... ")
+    processorFunctions.lookingForNotMatch(resultData,studentsData, processName)
 
 # Cargar imagen usando PIL
 logo = Image.open("img/logoCepre.png")

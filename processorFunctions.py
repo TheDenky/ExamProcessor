@@ -194,27 +194,34 @@ def searchMatchAprox(df1, df2, umbral):
         resultados.append(mejor_coincidencia)
     return resultados
 
-def contrastCalificationDni(resultData, studentsData):
+def contrastCalificationDni(resultData, studentsData, outputName):
     # Convertir ambas columnas a tipo string (str)
     resultData['dni'] = resultData['dni'].astype(str)
     studentsData['DNI'] = studentsData['DNI'].astype(str)
     resultStudentData = pd.merge(resultData, studentsData, left_on='dni', right_on='DNI', how='right')
 
-    resultStudentData.to_excel("ResultadoCrudo.xlsx", index=False)
+    resultStudentData.to_excel(outputName+ "_resultadoCrudo.xlsx", index=False)
+
+    # Seleccionar solo las columnas que te interesan
+    columnas_deseadas = ['DNI', 'NOMBRES', 'APELLIDOS', 'CARRERA', 'result']
+    df_filtrado = resultStudentData[columnas_deseadas]
+    df_filtrado.to_excel(outputName +"_resultadoFinal.xlsx", index=False)
+
     return resultStudentData
     #print(resultStudentData)
 
-def lookingForNotMatch(resultData, studentsData):
+def lookingForNotMatch(resultData, studentsData, outputName):
+
     result_left = pd.merge(resultData, studentsData, left_on='dni', right_on='DNI', how='left', indicator=True)
     result_left_no_match = result_left[result_left['_merge'] == 'left_only']
     print("\nDatos de df1 sin coincidencias en df2:")
     print(result_left_no_match)
+
     # Crear una copia explícita de result_left_no_match para evitar el error
     result_left_no_match = result_left_no_match.copy()
 
     # Realizar un right join para obtener datos de studentsData sin coincidencias en resultData
     students_right = pd.merge(resultData, studentsData, left_on='dni', right_on='DNI', how='right', indicator=True)
-
     # Filtrar los datos de studentsData que no tienen coincidencias en resultData (right_only)
     students_right_no_match = students_right[students_right['_merge'] == 'right_only']
     print("\nDatos de studentsData sin coincidencias en resultData:")
@@ -232,4 +239,5 @@ def lookingForNotMatch(resultData, studentsData):
     no_match_data = pd.concat([result_left_no_match, students_right_no_match], ignore_index=True)
     print("\nDatos que no coincidieron en el inner join:")
     print(no_match_data)
-    no_match_data.to_excel("Corregir.xlsx", index=False)
+    no_match_data.to_excel(outputName + "_corregir.xlsx", index=False)
+

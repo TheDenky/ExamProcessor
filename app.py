@@ -1,9 +1,10 @@
 import pandas as pd
 import ttkbootstrap as ttk
 from PIL import Image, ImageTk
-from PIL.ImageOps import expand
 from ttkbootstrap.constants import *
 from tkinter import filedialog
+import os
+import sys
 
 import password
 import processorFunctions
@@ -203,9 +204,20 @@ def processAll():
 
         showMessage("¡ÉXITO!, Operación finalizada")
 
+def resource_path(relative_path):
+    """Obtiene el path absoluto del recurso, compatible con PyInstaller."""
+    try:
+        base_path = sys._MEIPASS  # Carpeta temporal usada por PyInstaller
+    except AttributeError:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
 # Cargar imagen usando PIL
-logo = Image.open("img/logoCepre.png")
-logo = logo.resize((200, 150))
+img_path = resource_path("img/EPicon.ico")
+logo = Image.open(img_path)
+
+#logo = Image.open("logo.png")
+logo = logo.resize((200, 200))
 logoImg = ImageTk.PhotoImage(logo)
 logoLabel = ttk.Label(loginFrame, image=logoImg)
 logoLabel.pack(pady=50)

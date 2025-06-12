@@ -11,7 +11,7 @@ import processorFunctions
 #Creación de ventana principal
 app = ttk.Window(themename="cosmo")
 app.title("Exam Processor by ValleyTech")
-app.geometry("800x600")
+app.geometry("800x650")
 
 # Crear notebook
 notebook = ttk.Notebook(app)
@@ -55,11 +55,13 @@ def verificarCredenciales():
     print("pwd", pwd)
     if pwd == "":
         text = "Enter the password!"
+        showMessage(text)
     elif pwd == password.actualPassword():
-        text = "Access Permit!"
+        #text = "Access Permit!"
         accesoCorrecto()
-    else: text = "Bad password!"
-    showMessage(text)
+    else:
+        text = "Bad password!"
+        showMessage(text)
 
 def showMessage(text):
     #Creation of a modal dialog
@@ -176,20 +178,30 @@ def processAll():
     global processData, resultData, identifierData, resultStudentData, studentsData
     global responsesData, keyData, questionsQuantity, correctAnswerValue, failedAnswerValue, empyAnswerValue
 
-    print("Calificando fichas ... ")
-    processData = processorFunctions.excecuteCalification(keyData,responsesData,questionsQuantity,correctAnswerValue,failedAnswerValue,empyAnswerValue)
-    processData = pd.DataFrame(processData, columns=["idTab", "correct", "failed", "empty" ,  "result"])
-    print("process Data\n", processData)
+    global processName
+    processName = processNameEntry.get()
 
-    print("Contrastando fichas... ")
-    resultData = processorFunctions.contrastCalificationId(processData, identifierData)
-    print("Result Data\n", resultData)
+    if( isinstance(identifierData, list) or isinstance(responsesData, list) or isinstance(keyData, list) or isinstance(studentsData, list)):
+        showMessage("¡HAY DATOS VACIOS!")
 
-    print("Contrastando DNIs... ")
-    resultStudentData = processorFunctions.contrastCalificationDni(resultData,studentsData, processName)
+    else:
+        print("Calificando fichas ... ")
+        processData = processorFunctions.excecuteCalification(keyData, responsesData, questionsQuantity,
+                                                              correctAnswerValue, failedAnswerValue, empyAnswerValue)
+        processData = pd.DataFrame(processData, columns=["idTab", "correct", "failed", "empty", "result"])
+        print("process Data\n", processData)
 
-    print("Resolviendo Match... ")
-    processorFunctions.lookingForNotMatch(resultData,studentsData, processName)
+        print("Contrastando fichas... ")
+        resultData = processorFunctions.contrastCalificationId(processData, identifierData)
+        print("Result Data\n", resultData)
+
+        print("Contrastando DNIs... ")
+        resultStudentData = processorFunctions.contrastCalificationDni(resultData, studentsData, processName)
+
+        print("Resolviendo Match... ")
+        processorFunctions.lookingForNotMatch(resultData, studentsData, processName)
+
+        showMessage("¡ÉXITO!, Operación finalizada")
 
 # Cargar imagen usando PIL
 logo = Image.open("img/logoCepre.png")
@@ -228,6 +240,10 @@ themeButton.pack(pady = 30)
 #Titulo
 titulo = ttk.Label(tab2, text="CEPRE EXAM PROCESSOR", font=("Comic Sans MS", 24), bootstyle="info")
 titulo.pack(pady=20)
+
+ttk.Label(tab2, text="Process Name:", font=("Elvetica",12)).pack(padx=5)
+processNameEntry = ttk.Entry(tab2, width=30,justify="center", font=("Elvetica", 15))
+processNameEntry.pack(padx=5)
 
 #Create a new frame for scanner files
 scannerFrame = ttk.LabelFrame(

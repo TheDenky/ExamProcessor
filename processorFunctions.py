@@ -147,17 +147,18 @@ def excecuteCalification(keyData, responsesData, questionsQuantity, correctAnswe
                 # Itera sobre cada carácter por índice
                 for i in range(len(rowResponses.responses)):
                     #print(f"Índice {i}: Key: {rowKey.keyResponses[i]} Answer: {rowResponses.responses[i]}")
-                    if(rowResponses.responses[i] == rowKey.keyResponses[i]):
-                        correct+=1
-                    elif(rowResponses.responses[i] == " "):
-                        #print(f"Vacio {i}")
-                        #empty+=1
-                        continue
-                    else: failed+=1
+                    if(rowKey.keyResponses[i] != " "):
+                        if(rowResponses.responses[i] == rowKey.keyResponses[i]):
+                            correct+=1
+                        elif(rowResponses.responses[i] == " "):
+                            #print(f"Vacio {i}")
+                            empty+=1
+                            continue
+                        else: failed+=1
 
                 #print(f"Correct: {correct}")
                 #print(f"Failed: {failed}")
-                empty = questionsQuantity - correct - failed
+                #empty = questionsQuantity - correct - failed
                 #print(f"Empty: {empty}")
                 result = (correct * correctAnswerValue) + (failed * failedAnswerValue) + (empty * empyAnswerValue)
                 #print(f"Result: {result}")

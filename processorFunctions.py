@@ -9,8 +9,8 @@ def openIdentifier(identifierFileDirection):
         data = []
         for line in file:
             if(len(line)<60):
-                # Elimina los saltos de línea y espacios extraños
-                line = line.strip()
+                # Elimina solo los saltos de línea, pero NO los espacios al inicio o final de la cadena
+                line = line.rstrip('\n')  # Eliminar solo los saltos de línea al final
                 # print(line)
 
                 model = line[:3]  # Primer campo Modelo de ficha (por ejemplo, '301')
@@ -43,7 +43,7 @@ def openIdentifier(identifierFileDirection):
         return identifierData
 
 #Función para abrir y procesar el archivo identificador.
-def openResponses(responsesFileDirection, questionsQuantity):
+def openResponses(responsesFileDirection, questionsQuantity, tiebreakerQuestionsQuantity):
     responsesData = []
     # Abre el archivo en modo de lectura
     with open(responsesFileDirection, 'r') as file:
@@ -51,8 +51,8 @@ def openResponses(responsesFileDirection, questionsQuantity):
         data = []
         #print("Cantidad de lineas:", len(file))
         for line in file:
-            # Elimina los saltos de línea y espacios extraños
-            line = line.strip()
+            # Elimina solo los saltos de línea, pero NO los espacios al inicio o final de la cadena
+            line = line.rstrip('\n')  # Eliminar solo los saltos de línea al final
             # print(line)
 
             if (len(line) < 10):
@@ -68,7 +68,7 @@ def openResponses(responsesFileDirection, questionsQuantity):
             campo8 = line[39:40]  # Octavo campo "verificar"
             idTab = line[40:46]  # Noveno campo identificador de ficha (por ejemplo, '011093')
             topic = line[46:47]  # Decimo campo tema (por ejemplo, "S")
-            responses = line[48:(48 + questionsQuantity)]  # Onceavo campo respuestas por ejemplo "A"
+            responses = line[48:((48 + questionsQuantity)+tiebreakerQuestionsQuantity)]  # Onceavo campo respuestas por ejemplo "A"
 
             # Imprimir cada campo
             # print(
@@ -86,7 +86,7 @@ def openResponses(responsesFileDirection, questionsQuantity):
     return responsesData
 
 #Función para abrir y procesar el archivo de claves.
-def openKeys(keyFileDirection, questionsQuantity):
+def openKeys(keyFileDirection, questionsQuantity, tiebreakerQuestionsQuantity):
     keyData = []
     # Abre el archivo en modo de lectura
     with open(keyFileDirection, 'r') as file:
@@ -94,7 +94,7 @@ def openKeys(keyFileDirection, questionsQuantity):
         data = []
         for line in file:
             # Elimina los saltos de línea y espacios extraños
-            line = line.strip()
+            line = line.rstrip('\n')  # Eliminar solo los saltos de línea al final
             # print(line)
 
             if (len(line) < 10):
@@ -110,7 +110,7 @@ def openKeys(keyFileDirection, questionsQuantity):
             campo8 = line[39:40]  # Octavo campo "verificar"
             idTab = line[40:46]  # Noveno campo identificador de ficha (por ejemplo, '011093')
             topic = line[46:47]  # Decimo campo tema (por ejemplo, "S")
-            keyResponses = line[48:(48 + questionsQuantity)]  # Onceavo campo clave de respuestas por ejemplo "A"
+            keyResponses = line[48:((48 + questionsQuantity) + tiebreakerQuestionsQuantity)]  # Onceavo campo clave de respuestas por ejemplo "A"
 
             # Imprimir cada campo
             # print(
@@ -132,8 +132,9 @@ def openStudentsData(studentsFileDirection):
     return read
     #print(studentsData)
 
-def excecuteCalification(keyData, responsesData, questionsQuantity, correctAnswerValue, failedAnswerValue, empyAnswerValue):
+def excecuteCalification(keyData, responsesData, questionsQuantity, correctAnswerValue, failedAnswerValue, empyAnswerValue, wrongAnswerScore, tiebreakerQuestionsQuantity):
     processData = []
+
     for rowKey in keyData.itertuples():
         print(f"Índice: {rowKey.Index}")  # El índice de la fila
         print(f"Topic:{rowKey.topic} , KeyResponses:{rowKey.keyResponses} ")
@@ -142,27 +143,48 @@ def excecuteCalification(keyData, responsesData, questionsQuantity, correctAnswe
                 correct = 0
                 failed = 0
                 empty = 0
-                result = 0
-                #print(f"Topic:{rowResponses.topic} , Responses:{rowResponses.responses}, Enum: {rowResponses.enum} ")
+                wrongQuestion = 0
+                tiebreaker_correct = 0
+                tiebreaker_failed = 0
+                tiebreaker_empty = 0
+                print(f"Topic:{rowResponses.topic} , Responses:{rowResponses.responses}, Enum: {rowResponses.enum} ")
+                print(f"Questions quantity: {questionsQuantity} , tiebreaker quantity: {tiebreakerQuestionsQuantity} ")
                 # Itera sobre cada carácter por índice
-                for i in range(len(rowResponses.responses)):
-                    #print(f"Índice {i}: Key: {rowKey.keyResponses[i]} Answer: {rowResponses.responses[i]}")
-                    if(rowKey.keyResponses[i] != " "):
-                        if(rowResponses.responses[i] == rowKey.keyResponses[i]):
-                            correct+=1
-                        elif(rowResponses.responses[i] == " "):
-                            #print(f"Vacio {i}")
-                            empty+=1
-                            continue
-                        else: failed+=1
+                rango = questionsQuantity + tiebreakerQuestionsQuantity
+                for i in range(rango):
+                    print(f"Índice {i}: Key: {rowKey.keyResponses[i]} Answer: {rowResponses.responses[i]}")
+
+                    if(i<questionsQuantity):
+                        if(rowKey.keyResponses[i] != " "):
+                            if(rowResponses.responses[i] == rowKey.keyResponses[i]):
+                                correct+=1
+                            elif(rowResponses.responses[i] == " "):
+                                #print(f"Vacio {i}")
+                                empty+=1
+                                continue
+                            else: failed+=1
+                        else: wrongQuestion+=1
+                    else:
+                        if (rowKey.keyResponses[i] != " "):
+                            if (rowResponses.responses[i] == rowKey.keyResponses[i]):
+                                tiebreaker_correct += 1
+                            elif (rowResponses.responses[i] == " "):
+                                #print(f"Empty tiebreaker {i}")
+                                tiebreaker_empty += 1
+                                continue
+                            else:
+                                #print("Failed tiebreaker")
+                                tiebreaker_failed += 1
+                        else:
+                            print("Wrong tiebreaker")
 
                 #print(f"Correct: {correct}")
                 #print(f"Failed: {failed}")
                 #empty = questionsQuantity - correct - failed
                 #print(f"Empty: {empty}")
-                result = (correct * correctAnswerValue) + (failed * failedAnswerValue) + (empty * empyAnswerValue)
+                result = (correct * correctAnswerValue) + (failed * failedAnswerValue) + (empty * empyAnswerValue) + (wrongQuestion * wrongAnswerScore)
                 #print(f"Result: {result}")
-                processData.append([rowResponses.idTab, correct, failed, empty, result])
+                processData.append([rowResponses.idTab, correct, failed, empty, wrongQuestion, result, tiebreaker_correct, tiebreaker_failed, tiebreaker_empty ])
                 #print("************************")
 
         print(".....................")

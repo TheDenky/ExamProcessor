@@ -11,6 +11,9 @@ def openIdentifier(identifierFileDirection):
             if(len(line)<60):
                 # Elimina solo los saltos de línea, pero NO los espacios al inicio o final de la cadena
                 line = line.rstrip('\n')  # Eliminar solo los saltos de línea al final
+
+                if (len(line) < 10):
+                    continue
                 # print(line)
 
                 model = line[:3]  # Primer campo Modelo de ficha (por ejemplo, '301')
@@ -128,7 +131,7 @@ def openKeys(keyFileDirection, questionsQuantity, tiebreakerQuestionsQuantity):
         return keyData
 
 def openStudentsData(studentsFileDirection):
-    read = pd.read_excel(studentsFileDirection)
+    read = pd.read_excel(studentsFileDirection, dtype=str)
     return read
     #print(studentsData)
 
@@ -136,7 +139,7 @@ def excecuteCalification(keyData, responsesData, questionsQuantity, correctAnswe
     processData = []
 
     for rowKey in keyData.itertuples():
-        print(f"Índice: {rowKey.Index}")  # El índice de la fila
+        #print(f"Índice: {rowKey.Index}")  # El índice de la fila
         print(f"Topic:{rowKey.topic} , KeyResponses:{rowKey.keyResponses} ")
         for rowResponses in responsesData.itertuples():
             if(rowKey.topic == rowResponses.topic):
@@ -147,12 +150,12 @@ def excecuteCalification(keyData, responsesData, questionsQuantity, correctAnswe
                 tiebreaker_correct = 0
                 tiebreaker_failed = 0
                 tiebreaker_empty = 0
-                print(f"Topic:{rowResponses.topic} , Responses:{rowResponses.responses}, Enum: {rowResponses.enum} ")
-                print(f"Questions quantity: {questionsQuantity} , tiebreaker quantity: {tiebreakerQuestionsQuantity} ")
+                #print(f"Topic:{rowResponses.topic} , Responses:{rowResponses.responses}, Enum: {rowResponses.enum} ")
+                #print(f"Questions quantity: {questionsQuantity} , tiebreaker quantity: {tiebreakerQuestionsQuantity} ")
                 # Itera sobre cada carácter por índice
                 rango = questionsQuantity + tiebreakerQuestionsQuantity
                 for i in range(rango):
-                    print(f"Índice {i}: Key: {rowKey.keyResponses[i]} Answer: {rowResponses.responses[i]}")
+                    #print(f"Índice {i}: Key: {rowKey.keyResponses[i]} Answer: {rowResponses.responses[i]}")
 
                     if(i<questionsQuantity):
                         if(rowKey.keyResponses[i] != " "):
@@ -217,16 +220,20 @@ def searchMatchAprox(df1, df2, umbral):
         resultados.append(mejor_coincidencia)
     return resultados
 
-def contrastCalificationDni(resultData, studentsData, outputName):
+def contrastCalificationDni(resultData, studentsData, outputName, tiebreaker):
     # Convertir ambas columnas a tipo string (str)
     resultData['dni'] = resultData['dni'].astype(str)
     studentsData['DNI'] = studentsData['DNI'].astype(str)
+    #print("result data dni:", resultData['dni'])
+    #print("student data DNI:", studentsData['DNI'])
     resultStudentData = pd.merge(resultData, studentsData, left_on='dni', right_on='DNI', how='right')
 
     resultStudentData.to_excel(outputName+ "_resultadoCrudo.xlsx", index=False)
 
     # Seleccionar solo las columnas que te interesan
     columnas_deseadas = ['DNI', 'NOMBRES', 'APELLIDOS', 'CARRERA', 'result']
+    if tiebreaker:
+        columnas_deseadas = ['DNI', 'NOMBRES', 'APELLIDOS', 'CARRERA', 'tiebreaker_correct', 'tiebreaker_failed','tiebreaker_empty', 'result']
     df_filtrado = resultStudentData[columnas_deseadas]
     df_filtrado.to_excel(outputName +"_resultadoFinal.xlsx", index=False)
 
@@ -237,8 +244,8 @@ def lookingForNotMatch(resultData, studentsData, outputName):
 
     result_left = pd.merge(resultData, studentsData, left_on='dni', right_on='DNI', how='left', indicator=True)
     result_left_no_match = result_left[result_left['_merge'] == 'left_only']
-    print("\nDatos de df1 sin coincidencias en df2:")
-    print(result_left_no_match)
+    #print("\nDatos de df1 sin coincidencias en df2:")
+    #print(result_left_no_match)
 
     # Crear una copia explícita de result_left_no_match para evitar el error
     result_left_no_match = result_left_no_match.copy()
@@ -247,20 +254,20 @@ def lookingForNotMatch(resultData, studentsData, outputName):
     students_right = pd.merge(resultData, studentsData, left_on='dni', right_on='DNI', how='right', indicator=True)
     # Filtrar los datos de studentsData que no tienen coincidencias en resultData (right_only)
     students_right_no_match = students_right[students_right['_merge'] == 'right_only']
-    print("\nDatos de studentsData sin coincidencias en resultData:")
-    print(students_right_no_match)
+    #print("\nDatos de studentsData sin coincidencias en resultData:")
+    #print(students_right_no_match)
 
     # Buscar posibles Resultados.
     print("Resultados aproximados")
     lista = searchMatchAprox(result_left_no_match, students_right_no_match, 6)
-    print(lista)
+    #print(lista)
 
     # Agregar los resultados al DataFrame original como la columna 'Coincidencia'
     result_left_no_match.loc[:, 'MejorCoincidencia'] = lista
 
     # Combinar los datos no coincidentes de ambos DataFrames
     no_match_data = pd.concat([result_left_no_match, students_right_no_match], ignore_index=True)
-    print("\nDatos que no coincidieron en el inner join:")
-    print(no_match_data)
+    #print("\nDatos que no coincidieron en el inner join:")
+    #print(no_match_data)
     no_match_data.to_excel(outputName + "_corregir.xlsx", index=False)
 

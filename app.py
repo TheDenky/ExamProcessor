@@ -27,11 +27,13 @@ notebook.pack(fill='both', expand=True, padx=10, pady=10)
 loginFrame = ttk.Frame(notebook)
 configFrame = ttk.Frame(notebook)
 tab2 = ttk.Frame(notebook)
+finalScoreTab = ttk.Frame(notebook)  # NUEVA PESTAÑA
 aboutFrame = ttk.Frame(notebook)
 
 notebook.add(loginFrame, text="Login")
 notebook.add(configFrame, text="Config", state="disabled")
 notebook.add(tab2, text="Processor", state="disabled")
+notebook.add(finalScoreTab, text="Final Score", state="disabled")  # AGREGADA
 notebook.add(aboutFrame, text="About")
 
 # *********** Variables para uso de procesamiento ************************
@@ -39,6 +41,10 @@ identifierFileDirection = ''
 responsesFileDirection = ''
 keyFileDirection = ''
 studentsFileDirection = ''
+
+# NUEVAS VARIABLES PARA FINAL SCORE
+firstResultData = []
+secondResultData = []
 
 # Variables de configuración del proceso
 processYear = "2025"
@@ -82,6 +88,15 @@ def updateDataCounters():
     studentsCountLabel.config(text=f"Students: {studentsCount} records")
 
 
+def updateFinalScoreCounters():
+    """Actualiza los contadores de Final Score"""
+    firstCount = len(firstResultData) if isinstance(firstResultData, pd.DataFrame) else 0
+    secondCount = len(secondResultData) if isinstance(secondResultData, pd.DataFrame) else 0
+
+    firstResultCountLabel.config(text=f"First Result: {firstCount} records")
+    secondResultCountLabel.config(text=f"Second Result: {secondCount} records")
+
+
 def verificarCredenciales():
     text = ""
     pwd = passEntry.get()
@@ -122,6 +137,7 @@ def showMessage(text):
 def accesoCorrecto():
     notebook.tab(1, state="normal")
     notebook.tab(2, state="normal")
+    notebook.tab(3, state="normal")  # Habilitar Final Score
     notebook.tab(0, state="disabled")
 
 
@@ -129,9 +145,11 @@ def logout():
     """Función para cerrar sesión y volver al login"""
     passEntry.delete(0, 'end')
     clearAllFields()
+    clearFinalScoreFields()  # Limpiar campos de Final Score
 
     notebook.tab(1, state="disabled")
     notebook.tab(2, state="disabled")
+    notebook.tab(3, state="disabled")  # Deshabilitar Final Score
     notebook.tab(0, state="normal")
 
     notebook.select(0)
@@ -154,6 +172,19 @@ def clearAllFields():
     updateDataCounters()
 
 
+def clearFinalScoreFields():
+    """Función para limpiar campos de Final Score"""
+    global firstResultData, secondResultData
+
+    firstResultField.delete(0, 'end')
+    secondResultField.delete(0, 'end')
+
+    firstResultData = []
+    secondResultData = []
+
+    updateFinalScoreCounters()
+
+
 def selectIdentifier():
     global identifierData
     archivo = filedialog.askopenfilename(
@@ -164,7 +195,6 @@ def selectIdentifier():
         identifierField.delete(0, 'end')
         try:
             identifierData = pd.DataFrame(processorFunctions.openIdentifier(archivo))
-            #print("IDENTIFIER PRINT:", identifierData)
         except Exception as e:
             identifierField.delete(0, 'end')
             identifierData = []
@@ -191,7 +221,6 @@ def selectResponses():
         try:
             responsesData = pd.DataFrame(
                 processorFunctions.openResponses(archivo, questionsQuantity, tiebreakerQuestionsQuantity))
-            #print("RESPONSES PRINT:\n", responsesData)
         except Exception as e:
             responsesField.delete(0, 'end')
             responsesData = []
@@ -217,7 +246,6 @@ def selectKey():
         keyField.delete(0, 'end')
         try:
             keyData = pd.DataFrame(processorFunctions.openKeys(archivo, questionsQuantity, tiebreakerQuestionsQuantity))
-            #print("KEY PRINT:\n", keyData)
         except Exception as e:
             keyField.delete(0, 'end')
             keyData = []
@@ -243,7 +271,6 @@ def selectStudents():
         studentDataField.delete(0, 'end')
         try:
             studentsData = processorFunctions.openStudentsData(archivo)
-            #print("Students file opened!\n", studentsData)
 
             # Validar que tenga las columnas requeridas
             required_columns = ['DNI', 'NOMBRES', 'APELLIDOS', 'CARRERA']
@@ -264,6 +291,113 @@ def selectStudents():
             showMessage(f"Error al abrir archivo:\n{str(e)}")
 
         updateDataCounters()
+
+
+# NUEVAS FUNCIONES PARA FINAL SCORE
+def selectFirstResult():
+    """Función para seleccionar el primer archivo de resultados"""
+    global firstResultData
+    archivo = filedialog.askopenfilename(
+        title="Selecciona First Result",
+        filetypes=[("Archivos de excel", "*.xls*"), ("Todos los archivos", "*.*")]
+    )
+    if archivo:
+        firstResultField.delete(0, 'end')
+        try:
+            firstResultData = pd.read_excel(archivo, dtype=str)
+            print(f"First Result cargado: {len(firstResultData)} registros")
+            print("Fist file:", firstResultData)
+
+            # Validar columnas requeridas
+            required_columns = ['DNI', 'NOMBRES', 'APELLIDOS', 'CARRERA', 'result']
+            missing_columns = [col for col in required_columns if col not in firstResultData.columns]
+
+            if missing_columns:
+                error_msg = f"First Result - Faltan columnas:\n{', '.join(missing_columns)}"
+                showMessage(error_msg)
+                firstResultData = []
+            else:
+                firstResultField.insert(0, archivo)
+
+        except Exception as e:
+            firstResultField.delete(0, 'end')
+            firstResultData = []
+            print(f"Error al abrir First Result: {e}")
+            showMessage(f"Error al abrir archivo:\n{str(e)}")
+
+        updateFinalScoreCounters()
+
+
+def selectSecondResult():
+    """Función para seleccionar el segundo archivo de resultados"""
+    global secondResultData
+    archivo = filedialog.askopenfilename(
+        title="Selecciona Second Result",
+        filetypes=[("Archivos de excel", "*.xls*"), ("Todos los archivos", "*.*")]
+    )
+    if archivo:
+        secondResultField.delete(0, 'end')
+        try:
+            secondResultData = pd.read_excel(archivo, dtype=str)
+            print(f"Second Result cargado: {len(secondResultData)} registros")
+            print("second file:", secondResultData)
+            # Validar columnas requeridas
+            required_columns = ['DNI', 'result']
+            missing_columns = [col for col in required_columns if col not in secondResultData.columns]
+
+            if missing_columns:
+                error_msg = f"Second Result - Faltan columnas:\n{', '.join(missing_columns)}"
+                showMessage(error_msg)
+                secondResultData = []
+            else:
+                secondResultField.insert(0, archivo)
+
+        except Exception as e:
+            secondResultField.delete(0, 'end')
+            secondResultData = []
+            print(f"Error al abrir Second Result: {e}")
+            showMessage(f"Error al abrir archivo:\n{str(e)}")
+
+        updateFinalScoreCounters()
+
+
+def processFinalScore():
+    """Función para procesar el Final Score combinando ambos resultados"""
+    global firstResultData, secondResultData, processName, processYear
+
+    try:
+        # Validar que ambos archivos estén cargados
+        if isinstance(firstResultData, list) or firstResultData.empty:
+            showMessage("¡ERROR!\nPor favor cargue First Result.")
+            return
+
+        if isinstance(secondResultData, list) or secondResultData.empty:
+            showMessage("¡ERROR!\nPor favor cargue Second Result.")
+            return
+
+        # Crear nombre del proceso
+        fullProcessName = f"{processName}_{processYear}"
+
+        print("Procesando Final Score...")
+
+        # Llamar a la función de procesamiento
+        success = processorFunctions.mergeFinalResults(
+            firstResultData,
+            secondResultData,
+            fullProcessName
+        )
+
+        if success:
+            showMessage(
+                "¡ÉXITO!\nFinal Score procesado correctamente.\n\nArchivos generados:\n- ResultadoCrudo\n- MissingData\n- ResultadoFinal")
+            clearFinalScoreFields()
+        else:
+            showMessage("Error al procesar Final Score")
+
+    except Exception as e:
+        error_message = f"Error durante el procesamiento:\n\n{str(e)}"
+        print(f"ERROR: {error_message}")
+        showMessage(error_message)
 
 
 def processAll():
@@ -306,17 +440,16 @@ def processAll():
             "idTab", "correct", "failed", "empty", "wrong", "result",
             "tiebreaker_correct", "tiebreaker_failed", "tiebreaker_empty"
         ])
-        #print("process Data\n", processData)
 
         print("Contrastando fichas... ")
         resultData = processorFunctions.contrastCalificationId(processData, identifierData)
-        #print("Result Data\n", resultData)
 
         print("Contrastando DNIs... ")
         tiebreaker = False
-        if tiebreakerQuestionsQuantity>0:
+        if tiebreakerQuestionsQuantity > 0:
             tiebreaker = True
-        resultStudentData = processorFunctions.contrastCalificationDni(resultData, studentsData, fullProcessName, tiebreaker)
+        resultStudentData = processorFunctions.contrastCalificationDni(resultData, studentsData, fullProcessName,
+                                                                       tiebreaker)
 
         print("Resolviendo Match... ")
         processorFunctions.lookingForNotMatch(resultData, studentsData, fullProcessName)
@@ -700,6 +833,111 @@ primaryButton = ttk.Button(
     command=processAll
 )
 primaryButton.pack(pady=20)
+
+# ============= FINAL SCORE TAB =============
+finalScoreTitleFrame = ttk.Frame(finalScoreTab)
+finalScoreTitleFrame.pack(fill=X, padx=20, pady=5)
+
+finalScoreTitle = ttk.Label(
+    finalScoreTitleFrame,
+    text="FINAL SCORE PROCESSOR",
+    font=("Comic Sans MS", 24),
+    bootstyle="info"
+)
+finalScoreTitle.pack(side=LEFT, expand=True)
+
+# Frame para estadísticas de datos
+finalScoreStatsFrame = ttk.LabelFrame(finalScoreTab, text="Data Statistics", padding=10)
+finalScoreStatsFrame.pack(fill=X, padx=20, pady=10)
+
+firstResultCountLabel = ttk.Label(
+    finalScoreStatsFrame,
+    text="First Result: 0 records",
+    font=("Helvetica", 10),
+    bootstyle="info"
+)
+firstResultCountLabel.pack(anchor=W, pady=2)
+
+secondResultCountLabel = ttk.Label(
+    finalScoreStatsFrame,
+    text="Second Result: 0 records",
+    font=("Helvetica", 10),
+    bootstyle="info"
+)
+secondResultCountLabel.pack(anchor=W, pady=2)
+
+# Frame para cargar archivos de resultados
+resultsFrame = ttk.LabelFrame(
+    finalScoreTab,
+    text="Cargar Archivos de Resultados Excel",
+    padding=10
+)
+resultsFrame.pack(fill=X, padx=20, pady=10)
+
+# ----------First Result----------
+firstResultFrame = ttk.Frame(resultsFrame)
+firstResultFrame.pack(fill=X, pady=10)
+
+ttk.Label(
+    firstResultFrame,
+    text="First Result",
+    font=("Helvetica", 12)
+).pack(side=LEFT, padx=5)
+
+firstResultField = ttk.Entry(firstResultFrame, width=30)
+firstResultField.pack(side=LEFT, padx=5, fill=X, expand=YES)
+
+ttk.Button(
+    firstResultFrame,
+    text="Upload",
+    bootstyle="success-outline",
+    command=selectFirstResult
+).pack(side=LEFT, padx=5)
+
+# ----------Second Result----------
+secondResultFrame = ttk.Frame(resultsFrame)
+secondResultFrame.pack(fill=X, pady=10)
+
+ttk.Label(
+    secondResultFrame,
+    text="Second Result",
+    font=("Helvetica", 12)
+).pack(side=LEFT, padx=5)
+
+secondResultField = ttk.Entry(secondResultFrame, width=30)
+secondResultField.pack(side=LEFT, padx=5, fill=X, expand=YES)
+
+ttk.Button(
+    secondResultFrame,
+    text="Upload",
+    bootstyle="success-outline",
+    command=selectSecondResult
+).pack(side=LEFT, padx=5)
+
+# Información sobre el proceso
+infoFrame = ttk.LabelFrame(finalScoreTab, text="Process Information", padding=10)
+infoFrame.pack(fill=X, padx=20, pady=10)
+
+infoText = ttk.Label(
+    infoFrame,
+    text="Este proceso combinará los resultados de ambos exámenes.\n"
+         "- First Result: Debe contener todas las columnas de estudiantes\n"
+         "- Second Result: Debe contener al menos DNI y result\n"
+         "- Se generarán 3 archivos: ResultadoCrudo, MissingData y ResultadoFinal",
+    font=("Helvetica", 10),
+    wraplength=700
+)
+infoText.pack(pady=5)
+
+# Process button
+processFinalScoreButton = ttk.Button(
+    finalScoreTab,
+    text="PROCESS FINAL SCORE",
+    bootstyle="success-outline",
+    width=25,
+    command=processFinalScore
+)
+processFinalScoreButton.pack(pady=20)
 
 # ============= ABOUT FRAME =============
 

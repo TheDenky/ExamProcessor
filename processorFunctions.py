@@ -138,6 +138,7 @@ def openKeys(keyFileDirection, questionsQuantity, tiebreakerQuestionsQuantity):
 
 def openStudentsData(studentsFileDirection):
     read = pd.read_excel(studentsFileDirection, dtype=str)
+    read.columns = read.columns.str.strip().str.upper()
     return read
     # print(studentsData)
 
@@ -428,6 +429,113 @@ def mergeFinalResults(firstResultData, secondResultData, outputName):
 
     except Exception as e:
         print(f"\nERROR en mergeFinalResults: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+# ==================== ATTENDANCE REPORT FUNCTIONS ====================
+def generateAttendanceReport(identifierData, studentsData):
+    """
+    Genera un reporte de asistencia comparando DNIs de identifier con students
+
+    Parameters:
+    - identifierData: DataFrame con columna 'dni' (quienes asistieron)
+    - studentsData: DataFrame con columnas ['DNI', 'NOMBRES', 'APELLIDOS', 'CARRERA']
+
+    Returns:
+    - Tupla (attendanceDF, stats_dict)
+      - attendanceDF: DataFrame con columna 'ASISTENCIA' agregada
+      - stats_dict: {'total': int, 'present': int, 'absent': int, 'percentage': float}
+    """
+    try:
+        print("=" * 50)
+        print("GENERANDO REPORTE DE ASISTENCIA")
+        print("=" * 50)
+
+        # Convertir DNI a string en ambos DataFrames
+        identifierData['dni'] = identifierData['dni'].astype(str)
+        studentsData['DNI'] = studentsData['DNI'].astype(str)
+
+        # Obtener DNIs únicos de quienes asistieron (eliminar duplicados de scanner)
+        present_dnis = set(identifierData['dni'].unique())
+        print(f"DNIs únicos en Identifier: {len(present_dnis)}")
+        print(f"Total de estudiantes registrados: {len(studentsData)}")
+
+        # Crear copia del DataFrame de estudiantes
+        attendance_df = studentsData.copy()
+
+        # Agregar columna ASISTENCIA
+        attendance_df['ASISTENCIA'] = attendance_df['DNI'].apply(
+            lambda dni: 'PRESENTE' if dni in present_dnis else 'AUSENTE'
+        )
+
+        # Calcular estadísticas
+        total_students = len(attendance_df)
+        present_count = (attendance_df['ASISTENCIA'] == 'PRESENTE').sum()
+        absent_count = (attendance_df['ASISTENCIA'] == 'AUSENTE').sum()
+        percentage = (present_count / total_students * 100) if total_students > 0 else 0
+
+        stats = {
+            'total': total_students,
+            'present': present_count,
+            'absent': absent_count,
+            'percentage': percentage
+        }
+
+        # Ordenar: PRESENTE primero, luego por APELLIDOS
+        attendance_df = attendance_df.sort_values(
+            by=['ASISTENCIA', 'APELLIDOS'],
+            ascending=[False, True]
+        )
+
+        print(f"\nEstadísticas:")
+        print(f"  Total: {total_students}")
+        print(f"  Presentes: {present_count} ({percentage:.2f}%)")
+        print(f"  Ausentes: {absent_count}")
+        print("=" * 50)
+
+        return attendance_df, stats
+
+    except Exception as e:
+        print(f"\nERROR en generateAttendanceReport: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return None, None
+
+
+def saveAttendanceReport(attendanceData, processName):
+    """
+    Guarda el reporte de asistencia en un archivo Excel
+
+    Parameters:
+    - attendanceData: DataFrame con la columna ASISTENCIA
+    - processName: Nombre del proceso para el archivo
+
+    Returns:
+    - True si se guardó correctamente, False en caso contrario
+    """
+    try:
+        print(f"\nGuardando reporte de asistencia...")
+
+        # Construir nombre del archivo
+        filename = f"{processName}_Asistencia.xlsx"
+
+        # Ordenar columnas en orden lógico
+        column_order = ['DNI', 'NOMBRES', 'APELLIDOS', 'CARRERA', 'AULA', 'ASISTENCIA']
+
+        # Filtrar solo columnas que existen (por si hay adicionales)
+        existing_columns = [col for col in column_order if col in attendanceData.columns]
+        attendance_to_save = attendanceData[existing_columns]
+
+        # Guardar en Excel
+        attendance_to_save.to_excel(filename, index=False)
+
+        print(f"✓ Archivo guardado exitosamente: {filename}")
+        return True
+
+    except Exception as e:
+        print(f"\nERROR al guardar reporte de asistencia: {str(e)}")
         import traceback
         traceback.print_exc()
         return False

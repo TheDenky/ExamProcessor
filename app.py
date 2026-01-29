@@ -16,8 +16,8 @@ try:
     app.iconbitmap("img/EPicon.ico")
 except:
     pass
-app.title("Exam Processor v2.1")
-app.geometry("800x800")
+app.title("Exam Processor v2.2")
+app.geometry("800x900")
 
 # Crear notebook
 notebook = ttk.Notebook(app)
@@ -47,7 +47,7 @@ firstResultData = []
 secondResultData = []
 
 # Variables de configuración del proceso
-processYear = "2025"
+processYear = "2026"
 processName = "ORDINARIO"
 examType = "Primer Examen"
 
@@ -74,6 +74,9 @@ resultStudentData = None
 processData = []
 resultData = None
 
+# Variable para el reporte de asistencia
+attendanceReportData = None
+attendanceContentVisible = False  # Estado del frame colapsable
 
 def updateDataCounters():
     """Actualiza los contadores de datos cargados"""
@@ -146,6 +149,7 @@ def logout():
     passEntry.delete(0, 'end')
     clearAllFields()
     clearFinalScoreFields()  # Limpiar campos de Final Score
+    clearAttendanceData()  # Limpiar datos de asistencia
 
     notebook.tab(1, state="disabled")
     notebook.tab(2, state="disabled")
@@ -170,6 +174,7 @@ def clearAllFields():
     studentsData = []
 
     updateDataCounters()
+    clearAttendanceData()  # Limpiar datos de asistencia
 
 
 def clearFinalScoreFields():
@@ -208,6 +213,7 @@ def selectIdentifier():
             identifierField.insert(0, archivo)
 
         updateDataCounters()
+        clearAttendanceData()  # Limpiar reporte de asistencia al cambiar identifier
 
 
 def selectResponses():
@@ -291,6 +297,7 @@ def selectStudents():
             showMessage(f"Error al abrir archivo:\n{str(e)}")
 
         updateDataCounters()
+        clearAttendanceData()  # Limpiar reporte de asistencia al cambiar students
 
 
 # NUEVAS FUNCIONES PARA FINAL SCORE
@@ -398,7 +405,6 @@ def processFinalScore():
         error_message = f"Error durante el procesamiento:\n\n{str(e)}"
         print(f"ERROR: {error_message}")
         showMessage(error_message)
-
 
 def processAll():
     global processData, resultData, identifierData, resultStudentData, studentsData
@@ -537,6 +543,141 @@ def saveConfig():
     except Exception as e:
         showMessage(f"Error al guardar configuración: {str(e)}")
 
+
+# ==================== ATTENDANCE FUNCTIONS ====================
+def checkAttendance():
+    """Genera el reporte de asistencia comparando Identifier con Students"""
+    global attendanceReportData, identifierData, studentsData
+
+    try:
+        # Validar que ambos archivos estén cargados
+        if isinstance(identifierData, list) or identifierData.empty:
+            showMessage("¡ERROR!\nPor favor cargue el archivo Identifier primero.")
+            return
+
+        if isinstance(studentsData, list) or studentsData.empty:
+            showMessage("¡ERROR!\nPor favor cargue el archivo Students primero.")
+            return
+
+        # Validar que tengan las columnas necesarias
+        if 'dni' not in identifierData.columns:
+            showMessage("¡ERROR!\nEl archivo Identifier no tiene la columna 'dni'.")
+            return
+
+        if 'DNI' not in studentsData.columns:
+            showMessage("¡ERROR!\nEl archivo Students no tiene la columna 'DNI'.")
+            return
+
+        print("Generando reporte de asistencia...")
+
+        # Llamar a la función de procesamiento
+        attendanceReportData, stats = processorFunctions.generateAttendanceReport(
+            identifierData,
+            studentsData
+        )
+
+        if attendanceReportData is None or stats is None:
+            showMessage("¡ERROR!\nNo se pudo generar el reporte de asistencia.")
+            return
+
+        # Actualizar UI con estadísticas
+        updateAttendanceUI(stats)
+
+        # Habilitar botón de descarga
+        downloadAttendanceButton.config(state="normal")
+
+        # Mostrar mensaje de éxito
+        message = (
+            f"¡Reporte Generado!\n\n"
+            f"Total Estudiantes: {stats['total']}\n"
+            f"Presentes: {stats['present']} ({stats['percentage']:.1f}%)\n"
+            f"Ausentes: {stats['absent']}"
+        )
+        showMessage(message)
+
+    except Exception as e:
+        error_message = f"Error al generar reporte:\n\n{str(e)}"
+        print(f"ERROR: {error_message}")
+        showMessage(error_message)
+        attendanceReportData = None
+        updateAttendanceUI(None)
+
+
+def downloadAttendance():
+    """Descarga el reporte de asistencia en formato Excel"""
+    global attendanceReportData, processName, processYear
+
+    try:
+        # Validar que el reporte exista
+        if attendanceReportData is None or attendanceReportData.empty:
+            showMessage("¡ERROR!\nPor favor genere el reporte de asistencia primero.")
+            return
+
+        # Construir nombre del proceso
+        fullProcessName = f"{processName}_{processYear}"
+
+        print(f"Descargando reporte de asistencia: {fullProcessName}_Asistencia.xlsx")
+
+        # Llamar a la función de guardado
+        success = processorFunctions.saveAttendanceReport(
+            attendanceReportData,
+            fullProcessName
+        )
+
+        if success:
+            filename = f"{fullProcessName}_Asistencia.xlsx"
+            showMessage(f"¡Éxito!\n\nArchivo guardado:\n{filename}")
+        else:
+            showMessage("¡ERROR!\nNo se pudo guardar el archivo.")
+
+    except Exception as e:
+        error_message = f"Error al descargar reporte:\n\n{str(e)}"
+        print(f"ERROR: {error_message}")
+        showMessage(error_message)
+
+
+def updateAttendanceUI(stats):
+    """
+    Actualiza los labels de estadísticas de asistencia
+
+    Parameters:
+    - stats: dict con claves {'total', 'present', 'absent', 'percentage'} o None para limpiar
+    """
+    if stats is None:
+        # Limpiar estadísticas
+        totalStudentsLabel.config(text="Total Students: 0")
+        presentLabel.config(text="Present: 0 (0.0%)")
+        absentLabel.config(text="Absent: 0 (0.0%)")
+        downloadAttendanceButton.config(state="disabled")
+    else:
+        # Actualizar con estadísticas reales
+        totalStudentsLabel.config(text=f"Total Students: {stats['total']}")
+        presentLabel.config(
+            text=f"Present: {stats['present']} ({stats['percentage']:.1f}%)"
+        )
+        absentLabel.config(text=f"Absent: {stats['absent']}")
+
+
+def clearAttendanceData():
+    """Limpia los datos de asistencia y resetea la UI"""
+    global attendanceReportData
+    attendanceReportData = None
+    updateAttendanceUI(None)
+
+def toggleAttendanceFrame():
+    """Muestra u oculta el contenido del Attendance Control Frame"""
+    global attendanceContentVisible
+
+    if attendanceContentVisible:
+        # Ocultar contenido
+        attendanceContentFrame.pack_forget()
+        toggleAttendanceBtn.config(text="▶")
+        attendanceContentVisible = False
+    else:
+        # Mostrar contenido
+        attendanceContentFrame.pack(fill=X, pady=5)
+        toggleAttendanceBtn.config(text="▼")
+        attendanceContentVisible = True
 
 # ============= LOGIN FRAME =============
 img_path = resource_path("img/EPicon.ico")
@@ -761,6 +902,102 @@ messageButton = ttk.Button(
 )
 messageButton.pack(side=LEFT, padx=5)
 
+# ============= ATTENDANCE CONTROL FRAME (COLAPSABLE) =============
+
+# Frame principal contenedor
+attendanceControlFrame = ttk.Frame(tab2)
+attendanceControlFrame.pack(fill=X, padx=20, pady=10)
+
+# Frame del header con título y botón toggle
+attendanceHeaderFrame = ttk.Frame(attendanceControlFrame, relief="raised", borderwidth=1)
+attendanceHeaderFrame.pack(fill=X)
+
+# Botón toggle (▼/▶)
+toggleAttendanceBtn = ttk.Button(
+    attendanceHeaderFrame,
+    text="▶",
+    width=3,
+    bootstyle="link",
+    command=toggleAttendanceFrame
+)
+toggleAttendanceBtn.pack(side=LEFT, padx=5, pady=5)
+
+# Label del título
+ttk.Label(
+    attendanceHeaderFrame,
+    text="Attendance Control",
+    font=("Helvetica", 11, "bold"),
+    bootstyle="primary"
+).pack(side=LEFT, pady=5)
+
+# Frame del contenido (colapsable)
+attendanceContentFrame = ttk.Frame(attendanceControlFrame, relief="sunken", borderwidth=1)
+#attendanceContentFrame.pack(fill=X, pady=(0, 0))
+
+# Padding interno
+attendanceInnerFrame = ttk.Frame(attendanceContentFrame)
+attendanceInnerFrame.pack(fill=X, padx=10, pady=10)
+
+# Frame para estadísticas
+statsSubFrame = ttk.Frame(attendanceInnerFrame)
+statsSubFrame.pack(fill=X, pady=5)
+
+ttk.Label(
+    statsSubFrame,
+    text="Statistics:",
+    font=("Helvetica", 11, "bold")
+).pack(anchor=W, pady=2)
+
+totalStudentsLabel = ttk.Label(
+    statsSubFrame,
+    text="Total Students: 0",
+    font=("Helvetica", 10),
+    bootstyle="info"
+)
+totalStudentsLabel.pack(anchor=W, padx=20, pady=2)
+
+presentLabel = ttk.Label(
+    statsSubFrame,
+    text="Present: 0 (0.0%)",
+    font=("Helvetica", 10),
+    bootstyle="success"
+)
+presentLabel.pack(anchor=W, padx=20, pady=2)
+
+absentLabel = ttk.Label(
+    statsSubFrame,
+    text="Absent: 0 (0.0%)",
+    font=("Helvetica", 10),
+    bootstyle="danger"
+)
+absentLabel.pack(anchor=W, padx=20, pady=2)
+
+# Separador
+ttk.Separator(attendanceInnerFrame, orient='horizontal').pack(fill=X, pady=10)
+
+# Frame para botones
+buttonsAttendanceFrame = ttk.Frame(attendanceInnerFrame)
+buttonsAttendanceFrame.pack(fill=X, pady=5)
+
+checkAttendanceButton = ttk.Button(
+    buttonsAttendanceFrame,
+    text="CHECK ATTENDANCE",
+    bootstyle="info-outline",
+    width=20,
+    command=checkAttendance
+)
+checkAttendanceButton.pack(side=LEFT, padx=5)
+
+downloadAttendanceButton = ttk.Button(
+    buttonsAttendanceFrame,
+    text="DOWNLOAD ATTENDANCE",
+    bootstyle="success-outline",
+    width=20,
+    command=downloadAttendance,
+    state="disabled"  # Deshabilitado inicialmente
+)
+downloadAttendanceButton.pack(side=LEFT, padx=5)
+
 # Create frame for scanner files
 scannerFrame = ttk.LabelFrame(
     tab2,
@@ -979,7 +1216,7 @@ universityLabel.pack(anchor=W, pady=2)
 locationLabel = ttk.Label(institutionFrame, text="Andahuaylas - Apurímac - Perú", font=("Helvetica", 11))
 locationLabel.pack(anchor=W, pady=2)
 
-copyrightLabel = ttk.Label(aboutFrame, text="© 2025 ValleyTech. All rights reserved.",
+copyrightLabel = ttk.Label(aboutFrame, text="© 2026 ValleyTech. All rights reserved.",
                            font=("Helvetica", 10), bootstyle="secondary")
 copyrightLabel.pack(side=BOTTOM, pady=20)
 

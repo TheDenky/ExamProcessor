@@ -572,8 +572,8 @@ configScrollFrame = ttk.Frame(configFrame)
 configScrollFrame.pack(fill='both', expand=True, padx=10)
 
 # === PROCESS NAME SECTION ===
-processNameFrame = ttk.LabelFrame(configScrollFrame, text="Process Name", padding=10)
-processNameFrame.pack(fill=X, pady=5)
+processNameFrame = ttk.LabelFrame(configScrollFrame, text="Process Name")
+processNameFrame.pack(fill=X, pady=5, padx=10, ipadx=10, ipady=10)
 
 yearFrame = ttk.Frame(processNameFrame)
 yearFrame.pack(fill=X, pady=2)
@@ -599,8 +599,8 @@ ttk.Radiobutton(radioFrame, text="Primer Examen", variable=examTypeVar, value="P
 ttk.Radiobutton(radioFrame, text="Segundo Examen", variable=examTypeVar, value="Segundo Examen").pack(side=LEFT, padx=5)
 
 # === SCORING SECTION ===
-scoringFrame = ttk.LabelFrame(configScrollFrame, text="Scoring Configuration", padding=10)
-scoringFrame.pack(fill=X, pady=5)
+scoringFrame = ttk.LabelFrame(configScrollFrame, text="Scoring Configuration")
+scoringFrame.pack(fill=X, pady=5, padx=10, ipadx=10, ipady=10)
 
 questionsFrame = ttk.Frame(scoringFrame)
 questionsFrame.pack(fill=X, pady=2)
@@ -631,8 +631,8 @@ empyAnswerValueEntry.pack(side=LEFT, padx=5)
 empyAnswerValueEntry.insert(0, str(empyAnswerValue))
 
 # === TIEBREAKER SECTION ===
-tiebreakerFrame = ttk.LabelFrame(configScrollFrame, text="Tiebreaker Questions", padding=10)
-tiebreakerFrame.pack(fill=X, pady=5)
+tiebreakerFrame = ttk.LabelFrame(configScrollFrame, text="Tiebreaker Questions")
+tiebreakerFrame.pack(fill=X, pady=5, padx=10, ipadx=10, ipady=10)
 
 tiebreakerQFrame = ttk.Frame(tiebreakerFrame)
 tiebreakerQFrame.pack(fill=X, pady=2)
@@ -650,8 +650,8 @@ tiebreakerScoreEntry.insert(0, str(tiebreakerScore))
 tiebreakerScoreEntry.config(state="disabled")
 
 # === WRONG ANSWERS SECTION ===
-wrongAnswersFrame = ttk.LabelFrame(configScrollFrame, text="Invalid or unanswered Questions", padding=10)
-wrongAnswersFrame.pack(fill=X, pady=5)
+wrongAnswersFrame = ttk.LabelFrame(configScrollFrame, text="Invalid or unanswered Questions")
+wrongAnswersFrame.pack(fill=X, pady=5, padx=10, ipadx=10, ipady=10)
 
 wrongSFrame = ttk.Frame(wrongAnswersFrame)
 wrongSFrame.pack(fill=X, pady=2)
@@ -689,10 +689,10 @@ logoutButton.pack(side=RIGHT, padx=5)
 
 # Frame contenedor para los dos paneles lado a lado
 configAndStatsFrame = ttk.Frame(tab2)
-configAndStatsFrame.pack(fill=X, padx=20, pady=10)
+configAndStatsFrame.pack(fill=X, padx=20, pady=10, ipadx=10, ipady=10)
 
 # Frame izquierdo - Current Configuration
-configDisplayFrame = ttk.LabelFrame(configAndStatsFrame, text="Current Configuration", padding=10)
+configDisplayFrame = ttk.LabelFrame(configAndStatsFrame, text="Current Configuration")
 configDisplayFrame.pack(side=LEFT, fill=BOTH, expand=True, padx=(0, 5))
 
 fullProcessName = f"{processName}_{examType.replace(' ', '_').upper()}_{processYear}"
@@ -722,8 +722,8 @@ wrongAnswerDisplayLabel = ttk.Label(configDisplayFrame,
 wrongAnswerDisplayLabel.pack(anchor=W)
 
 # Frame derecho - Data Statistics
-dataStatsFrame = ttk.LabelFrame(configAndStatsFrame, text="Data Statistics", padding=10)
-dataStatsFrame.pack(side=RIGHT, fill=BOTH, expand=True, padx=(5, 0))
+dataStatsFrame = ttk.LabelFrame(configAndStatsFrame, text="Data Statistics")
+dataStatsFrame.pack(side=RIGHT, fill=BOTH, expand=True, padx=(5, 0), ipadx=10, ipady=10)
 
 identifierCountLabel = ttk.Label(dataStatsFrame, text="Identifier: 0 records", font=("Helvetica", 10), bootstyle="info")
 identifierCountLabel.pack(anchor=W, pady=2)
@@ -740,10 +740,9 @@ studentsCountLabel.pack(anchor=W, pady=2)
 # Frame para datos del estudiante (ahora debajo de los paneles de configuración)
 studentFrame = ttk.LabelFrame(
     tab2,
-    text="Cargar datos del estudiante: DNI, NOMBRES, APELLIDOS, CARRERA",
-    padding=10
+    text="Cargar datos del estudiante: DNI, NOMBRES, APELLIDOS, CARRERA"
 )
-studentFrame.pack(fill=X, padx=20, pady=10)
+studentFrame.pack(fill=X, padx=20, pady=10, ipadx=10, ipady=10)
 
 studentDataFrame = ttk.Frame(studentFrame)
 studentDataFrame.pack(fill=X, pady=10)
@@ -765,10 +764,9 @@ messageButton.pack(side=LEFT, padx=5)
 # Create frame for scanner files
 scannerFrame = ttk.LabelFrame(
     tab2,
-    text="Cargar archivos del Scanner",
-    padding=10
+    text="Cargar archivos del Scanner"
 )
-scannerFrame.pack(fill=X, padx=20, pady=10)
+scannerFrame.pack(fill=X, padx=20, pady=10, ipadx=10, ipady=10)
 
 # ----------Identifier----------
 IscannerFrame = ttk.Frame(scannerFrame)
@@ -847,8 +845,8 @@ finalScoreTitle = ttk.Label(
 finalScoreTitle.pack(side=LEFT, expand=True)
 
 # Frame para estadísticas de datos
-finalScoreStatsFrame = ttk.LabelFrame(finalScoreTab, text="Data Statistics", padding=10)
-finalScoreStatsFrame.pack(fill=X, padx=20, pady=10)
+finalScoreStatsFrame = ttk.LabelFrame(finalScoreTab, text="Data Statistics")
+finalScoreStatsFrame.pack(fill=X, padx=20, pady=10, ipadx=10, ipady=10)
 
 firstResultCountLabel = ttk.Label(
     finalScoreStatsFrame,
@@ -869,10 +867,9 @@ secondResultCountLabel.pack(anchor=W, pady=2)
 # Frame para cargar archivos de resultados
 resultsFrame = ttk.LabelFrame(
     finalScoreTab,
-    text="Cargar Archivos de Resultados Excel",
-    padding=10
+    text="Cargar Archivos de Resultados Excel"
 )
-resultsFrame.pack(fill=X, padx=20, pady=10)
+resultsFrame.pack(fill=X, padx=20, pady=10, ipadx=10, ipady=10)
 
 # ----------First Result----------
 firstResultFrame = ttk.Frame(resultsFrame)
@@ -915,8 +912,8 @@ ttk.Button(
 ).pack(side=LEFT, padx=5)
 
 # Información sobre el proceso
-infoFrame = ttk.LabelFrame(finalScoreTab, text="Process Information", padding=10)
-infoFrame.pack(fill=X, padx=20, pady=10)
+infoFrame = ttk.LabelFrame(finalScoreTab, text="Process Information")
+infoFrame.pack(fill=X, padx=20, pady=10, ipadx=10, ipady=10)
 
 infoText = ttk.Label(
     infoFrame,
@@ -947,8 +944,8 @@ aboutTitle.pack(pady=20)
 aboutMainFrame = ttk.Frame(aboutFrame)
 aboutMainFrame.pack(fill=BOTH, expand=True, padx=40, pady=20)
 
-infoFrame = ttk.LabelFrame(aboutMainFrame, text="Software Information", padding=20)
-infoFrame.pack(fill=X, pady=10)
+infoFrame = ttk.LabelFrame(aboutMainFrame, text="Software Information")
+infoFrame.pack(fill=X, pady=10, ipadx=20, ipady=20)
 
 versionLabel = ttk.Label(infoFrame, text="Version: 2.1", font=("Helvetica", 12, "bold"))
 versionLabel.pack(anchor=W, pady=5)
@@ -960,8 +957,8 @@ versionLabel = ttk.Label(infoFrame, text="Actual Password: " + password.actualPa
                          font=("Helvetica", 12, "bold"))
 versionLabel.pack(anchor=W, pady=5)
 
-contactFrame = ttk.LabelFrame(aboutMainFrame, text="Contact Information", padding=20)
-contactFrame.pack(fill=X, pady=10)
+contactFrame = ttk.LabelFrame(aboutMainFrame, text="Contact Information")
+contactFrame.pack(fill=X, pady=10, ipadx=20, ipady=20)
 
 contactLabel = ttk.Label(contactFrame, text="Contacto: denkyruben@gmail.com", font=("Helvetica", 12))
 contactLabel.pack(anchor=W, pady=2)
@@ -969,8 +966,8 @@ contactLabel.pack(anchor=W, pady=2)
 phoneLabel = ttk.Label(contactFrame, text="Teléfono: +51 900470001", font=("Helvetica", 12))
 phoneLabel.pack(anchor=W, pady=2)
 
-institutionFrame = ttk.LabelFrame(aboutMainFrame, text="Institution", padding=20)
-institutionFrame.pack(fill=X, pady=10)
+institutionFrame = ttk.LabelFrame(aboutMainFrame, text="Institution")
+institutionFrame.pack(fill=X, pady=10, ipadx=20, ipady=20)
 
 institutionLabel = ttk.Label(institutionFrame, text="Centro Preuniversitario de la UNAJMA",
                              font=("Helvetica", 12, "bold"))

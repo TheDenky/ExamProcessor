@@ -48,7 +48,7 @@ secondResultData = []
 
 # Variables de configuración del proceso
 processYear = "2026"
-processName = "ORDINARIO"
+processName = "INTENSIVO"
 examType = "Primer Examen"
 
 # Variables de puntuación
@@ -112,6 +112,7 @@ def verificarCredenciales():
     else:
         text = "Bad password!"
         showMessage(text)
+        passEntry.delete(0, 'end')  # Limpiar campo
 
 
 def showMessage(text):
@@ -123,18 +124,43 @@ def showMessage(text):
     y = app.winfo_y() + (app.winfo_height() - 150) // 2
     dialog.geometry(f"+{x}+{y}")
 
+    # Hacer el diálogo modal (captura eventos)
+    dialog.grab_set()
+
+    # Hacer que el diálogo esté siempre al frente
+    dialog.transient(app)
+
     ttk.Label(
         dialog,
         text=text,
         font=("Helvetica", 12),
         wraplength=250
     ).pack(expand=YES, fill=BOTH, padx=20, pady=20)
-    ttk.Button(
+
+    closeButton = ttk.Button(
         dialog,
         text="Close",
         bootstyle="warning",
         command=dialog.destroy
-    ).pack(pady=10)
+    )
+    closeButton.pack(pady=10)
+
+    # Vincular Enter para cerrar el diálogo
+    dialog.bind("<Return>", lambda event: dialog.destroy())
+    # Vincular Escape para cerrar el diálogo
+    dialog.bind("<Escape>", lambda event: dialog.destroy())
+
+    # Dar foco al botón Close
+    closeButton.focus()
+
+    # Al cerrar el diálogo, restaurar foco al campo de contraseña si estamos en login
+    def on_close():
+        dialog.destroy()
+        # Verificar si la pestaña activa es Login (índice 0)
+        if notebook.index(notebook.select()) == 0:
+            passEntry.focus()
+
+    dialog.protocol("WM_DELETE_WINDOW", on_close)
 
 
 def accesoCorrecto():
@@ -157,7 +183,7 @@ def logout():
     notebook.tab(0, state="normal")
 
     notebook.select(0)
-
+    passEntry.focus()
 
 def clearAllFields():
     """Función para limpiar todos los campos de archivos"""
@@ -701,9 +727,12 @@ passFrame = ttk.Frame(loginFrame)
 passFrame.pack(fill=X, pady=10)
 passEntry = ttk.Entry(passFrame, width=10, show="*", font=("Georgia", 20), justify="center")
 passEntry.pack(side=LEFT, padx=5, expand=YES)
+passEntry.focus()  # Establecer foco automático al iniciar
+passEntry.bind("<Return>", lambda event: verificarCredenciales())  # Enter para acceder
 
 themeButton = ttk.Button(loginFrame, text="ACCEDER", style="primary-outline", command=verificarCredenciales, width=27)
 themeButton.pack(pady=30)
+themeButton.bind("<Return>", lambda event: verificarCredenciales())  # Enter también en el botón
 
 # ============= CONFIG FRAME =============
 titulo = ttk.Label(configFrame, text="SETTINGS", font=("Comic Sans MS", 24), bootstyle="info")
@@ -1184,7 +1213,7 @@ aboutMainFrame.pack(fill=BOTH, expand=True, padx=40, pady=20)
 infoFrame = ttk.LabelFrame(aboutMainFrame, text="Software Information")
 infoFrame.pack(fill=X, pady=10, ipadx=20, ipady=20)
 
-versionLabel = ttk.Label(infoFrame, text="Version: 2.1", font=("Helvetica", 12, "bold"))
+versionLabel = ttk.Label(infoFrame, text="Version: 2.2", font=("Helvetica", 12, "bold"))
 versionLabel.pack(anchor=W, pady=5)
 
 devLabel = ttk.Label(infoFrame, text="Desarrollado en: Informática Cepre", font=("Helvetica", 12))

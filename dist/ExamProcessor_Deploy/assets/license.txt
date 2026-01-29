@@ -1,0 +1,15 @@
+LICENCIA DE USO
+ExamProcessor v2.2
+
+Este software es propiedad del Centro Preuniversitario de la UNAJMA.
+
+Está permitido:
+- Instalar en computadoras de la institución
+- Usar para procesamiento de exámenes CEPRE
+
+NO está permitido:
+- Distribuir fuera de la institución sin autorización
+- Modificar o descompilar el software
+- Uso comercial sin licencia
+
+© 2026 ValleyTech. Todos los derechos reservados.

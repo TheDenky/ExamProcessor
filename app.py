@@ -4,6 +4,7 @@ from PIL import Image, ImageTk
 from ttkbootstrap.constants import *
 from tkinter import filedialog
 import os
+from tkinter import filedialog
 import sys
 
 import password
@@ -417,7 +418,8 @@ def processFinalScore():
         success = processorFunctions.mergeFinalResults(
             firstResultData,
             secondResultData,
-            fullProcessName
+            fullProcessName,
+            app
         )
 
         if success:
@@ -480,11 +482,21 @@ def processAll():
         tiebreaker = False
         if tiebreakerQuestionsQuantity > 0:
             tiebreaker = True
-        resultStudentData = processorFunctions.contrastCalificationDni(resultData, studentsData, fullProcessName,
-                                                                       tiebreaker)
+        resultStudentData, success_dni, filepaths_dni = processorFunctions.contrastCalificationDni(
+            resultData, studentsData, fullProcessName, tiebreaker, app
+        )
+
+        if not success_dni:
+            showMessage("Proceso cancelado o error al guardar resultados.")
+            return
 
         print("Resolviendo Match... ")
-        processorFunctions.lookingForNotMatch(resultData, studentsData, fullProcessName)
+        success_match, filepath_match = processorFunctions.lookingForNotMatch(
+            resultData, studentsData, fullProcessName, app
+        )
+
+        if not success_match:
+            print("Advertencia: No se guardó el archivo de correcciones")
 
         showMessage("¡ÉXITO!\nOperación finalizada correctamente.")
 
@@ -628,7 +640,6 @@ def checkAttendance():
         attendanceReportData = None
         updateAttendanceUI(None)
 
-
 def downloadAttendance():
     """Descarga el reporte de asistencia en formato Excel"""
     global attendanceReportData, processName, processYear
@@ -642,22 +653,27 @@ def downloadAttendance():
         # Construir nombre del proceso
         fullProcessName = f"{processName}_{processYear}"
 
-        print(f"Descargando reporte de asistencia: {fullProcessName}_Asistencia.xlsx")
+        print(f"Guardando reporte de asistencia...")
 
-        # Llamar a la función de guardado
-        success = processorFunctions.saveAttendanceReport(
+        # Llamar a la función de guardado con diálogo
+        success, filepath = processorFunctions.saveAttendanceReport(
             attendanceReportData,
-            fullProcessName
+            fullProcessName,
+            app  # Pasar ventana principal como parent
         )
 
-        if success:
-            filename = f"{fullProcessName}_Asistencia.xlsx"
-            showMessage(f"¡Éxito!\n\nArchivo guardado:\n{filename}")
+        if success and filepath:
+            import os
+            filename = os.path.basename(filepath)
+            showMessage(f"¡Éxito!\n\nArchivo guardado:\n{filename}\n\nEn:\n{os.path.dirname(filepath)}")
+        elif not success and filepath is None:
+            # Usuario canceló
+            pass  # No mostrar mensaje de error
         else:
             showMessage("¡ERROR!\nNo se pudo guardar el archivo.")
 
     except Exception as e:
-        error_message = f"Error al descargar reporte:\n\n{str(e)}"
+        error_message = f"Error al guardar reporte:\n\n{str(e)}"
         print(f"ERROR: {error_message}")
         showMessage(error_message)
 

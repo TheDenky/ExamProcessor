@@ -1,5 +1,6 @@
 import pandas as pd
-
+from tkinter import filedialog
+import os
 
 # Función para abrir y procesar el archivo identificador.
 def openIdentifier(identifierFileDirection):
@@ -238,61 +239,139 @@ def searchMatchAprox(df1, df2, umbral):
     return resultados
 
 
-def contrastCalificationDni(resultData, studentsData, outputName, tiebreaker):
-    # Convertir ambas columnas a tipo string (str)
-    resultData['dni'] = resultData['dni'].astype(str)
-    studentsData['DNI'] = studentsData['DNI'].astype(str)
-    # print("result data dni:", resultData['dni'])
-    # print("student data DNI:", studentsData['DNI'])
-    resultStudentData = pd.merge(resultData, studentsData, left_on='dni', right_on='DNI', how='right')
+def contrastCalificationDni(resultData, studentsData, outputName, tiebreaker, parent_window=None):
+    """
+    Contrasta los resultados de calificación con los datos de estudiantes
 
-    resultStudentData.to_excel(outputName + "_resultadoCrudo.xlsx", index=False)
+    Returns:
+    - Tupla (resultStudentData, success, filepaths_dict)
+    """
+    from tkinter import filedialog
+    import os
 
-    # Seleccionar solo las columnas que te interesan
-    columnas_deseadas = ['DNI', 'NOMBRES', 'APELLIDOS', 'CARRERA', 'result']
-    if tiebreaker:
-        columnas_deseadas = ['DNI', 'NOMBRES', 'APELLIDOS', 'CARRERA', 'tiebreaker_correct', 'tiebreaker_failed',
-                             'tiebreaker_empty', 'result']
-    df_filtrado = resultStudentData[columnas_deseadas]
-    df_filtrado.to_excel(outputName + "_resultadoFinal.xlsx", index=False)
+    try:
+        # Convertir ambas columnas a tipo string (str)
+        resultData['dni'] = resultData['dni'].astype(str)
+        studentsData['DNI'] = studentsData['DNI'].astype(str)
 
-    return resultStudentData
-    # print(resultStudentData)
+        resultStudentData = pd.merge(resultData, studentsData, left_on='dni', right_on='DNI', how='right')
 
+        # ========== GUARDAR RESULTADO CRUDO ==========
+        suggested_name = f"{outputName}_resultadoCrudo.xlsx"
+        initial_dir = os.path.expanduser("~/Documents")
 
-def lookingForNotMatch(resultData, studentsData, outputName):
-    result_left = pd.merge(resultData, studentsData, left_on='dni', right_on='DNI', how='left', indicator=True)
-    result_left_no_match = result_left[result_left['_merge'] == 'left_only']
-    # print("\nDatos de df1 sin coincidencias en df2:")
-    # print(result_left_no_match)
+        filepath_crudo = filedialog.asksaveasfilename(
+            parent=parent_window,
+            title="Guardar Resultado Crudo",
+            initialdir=initial_dir,
+            initialfile=suggested_name,
+            defaultextension=".xlsx",
+            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")]
+        )
 
-    # Crear una copia explícita de result_left_no_match para evitar el error
-    result_left_no_match = result_left_no_match.copy()
+        if not filepath_crudo:
+            print("Usuario canceló el guardado del resultado crudo")
+            return resultStudentData, False, {}
 
-    # Realizar un right join para obtener datos de studentsData sin coincidencias en resultData
-    students_right = pd.merge(resultData, studentsData, left_on='dni', right_on='DNI', how='right', indicator=True)
-    # Filtrar los datos de studentsData que no tienen coincidencias en resultData (right_only)
-    students_right_no_match = students_right[students_right['_merge'] == 'right_only']
-    # print("\nDatos de studentsData sin coincidencias en resultData:")
-    # print(students_right_no_match)
+        resultStudentData.to_excel(filepath_crudo, index=False)
+        print(f"✓ Resultado crudo guardado: {filepath_crudo}")
 
-    # Buscar posibles Resultados.
-    print("Resultados aproximados")
-    lista = searchMatchAprox(result_left_no_match, students_right_no_match, 6)
-    # print(lista)
+        # ========== PREPARAR RESULTADO FINAL ==========
+        columnas_deseadas = ['DNI', 'NOMBRES', 'APELLIDOS', 'CARRERA', 'result']
+        if tiebreaker:
+            columnas_deseadas = ['DNI', 'NOMBRES', 'APELLIDOS', 'CARRERA', 'tiebreaker_correct',
+                                 'tiebreaker_failed', 'tiebreaker_empty', 'result']
 
-    # Agregar los resultados al DataFrame original como la columna 'Coincidencia'
-    result_left_no_match.loc[:, 'MejorCoincidencia'] = lista
+        df_filtrado = resultStudentData[columnas_deseadas]
 
-    # Combinar los datos no coincidentes de ambos DataFrames
-    no_match_data = pd.concat([result_left_no_match, students_right_no_match], ignore_index=True)
-    # print("\nDatos que no coincidieron en el inner join:")
-    # print(no_match_data)
-    no_match_data.to_excel(outputName + "_corregir.xlsx", index=False)
+        # ========== GUARDAR RESULTADO FINAL ==========
+        suggested_name = f"{outputName}_resultadoFinal.xlsx"
 
+        filepath_final = filedialog.asksaveasfilename(
+            parent=parent_window,
+            title="Guardar Resultado Final",
+            initialdir=os.path.dirname(filepath_crudo),  # Misma carpeta que el crudo
+            initialfile=suggested_name,
+            defaultextension=".xlsx",
+            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")]
+        )
+
+        if not filepath_final:
+            print("Usuario canceló el guardado del resultado final")
+            return resultStudentData, False, {'crudo': filepath_crudo}
+
+        df_filtrado.to_excel(filepath_final, index=False)
+        print(f"✓ Resultado final guardado: {filepath_final}")
+
+        filepaths = {
+            'crudo': filepath_crudo,
+            'final': filepath_final
+        }
+
+        return resultStudentData, True, filepaths
+
+    except Exception as e:
+        print(f"ERROR en contrastCalificationDni: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return resultStudentData, False, {}
+
+def lookingForNotMatch(resultData, studentsData, outputName, parent_window=None):
+    """
+    Busca datos que no coincidieron y los guarda en un archivo Excel
+
+    Returns:
+    - Tupla (success: bool, filepath: str)
+    """
+    from tkinter import filedialog
+    import os
+
+    try:
+        result_left = pd.merge(resultData, studentsData, left_on='dni', right_on='DNI', how='left', indicator=True)
+        result_left_no_match = result_left[result_left['_merge'] == 'left_only']
+
+        result_left_no_match = result_left_no_match.copy()
+
+        students_right = pd.merge(resultData, studentsData, left_on='dni', right_on='DNI', how='right', indicator=True)
+        students_right_no_match = students_right[students_right['_merge'] == 'right_only']
+
+        print("Resultados aproximados")
+        lista = searchMatchAprox(result_left_no_match, students_right_no_match, 6)
+
+        result_left_no_match.loc[:, 'MejorCoincidencia'] = lista
+
+        no_match_data = pd.concat([result_left_no_match, students_right_no_match], ignore_index=True)
+
+        # ========== GUARDAR ARCHIVO CORREGIR ==========
+        suggested_name = f"{outputName}_corregir.xlsx"
+        initial_dir = os.path.expanduser("~/Documents")
+
+        filepath_corregir = filedialog.asksaveasfilename(
+            parent=parent_window,
+            title="Guardar Archivo de Correcciones",
+            initialdir=initial_dir,
+            initialfile=suggested_name,
+            defaultextension=".xlsx",
+            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")]
+        )
+
+        if not filepath_corregir:
+            print("Usuario canceló el guardado del archivo de correcciones")
+            return False, None
+
+        no_match_data.to_excel(filepath_corregir, index=False)
+        print(f"✓ Archivo de correcciones guardado: {filepath_corregir}")
+
+        return True, filepath_corregir
+
+    except Exception as e:
+        print(f"ERROR en lookingForNotMatch: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False, None
 
 # ==================== NUEVA FUNCIÓN PARA FINAL SCORE ====================
-def mergeFinalResults(firstResultData, secondResultData, outputName):
+def mergeFinalResults(firstResultData, secondResultData, outputName, parent_window=None):
 
     print("PRIMERO:", firstResultData)
     print("SEGUNDO:", secondResultData)
@@ -351,27 +430,52 @@ def mergeFinalResults(firstResultData, secondResultData, outputName):
 
         print(f"Datos combinados: {len(mergedData)} registros")
 
-        # PASO 1: Guardar archivo CRUDO (todos los datos del merge)
-        crudoFileName = f"{outputName}_ResultadoCrudo.xlsx"
-        mergedData.to_excel(crudoFileName, index=False)
-        print(f"\n✓ Archivo guardado: {crudoFileName}")
+        # PASO 1: Guardar archivo CRUDO (CON DIÁLOGO)
+        initial_dir = os.path.expanduser("~/Documents")
+        suggested_name = f"{outputName}_ResultadoCrudo.xlsx"
+
+        filepath_crudo = filedialog.asksaveasfilename(
+            parent=parent_window,
+            title="Guardar Resultado Crudo (Final Score)",
+            initialdir=initial_dir,
+            initialfile=suggested_name,
+            defaultextension=".xlsx",
+            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")]
+        )
+
+        if not filepath_crudo:
+            print("Usuario canceló el guardado")
+            return False
+
+        mergedData.to_excel(filepath_crudo, index=False)
+        print(f"\n✓ Archivo guardado: {filepath_crudo}")
 
         # PASO 2: Identificar y guardar MISSING DATA
         # Estudiantes del First Result que NO tienen datos en Second Result
+        # PASO 2: Identificar y guardar MISSING DATA
         missingData = mergedData[mergedData['_merge'] == 'left_only'].copy()
 
         if not missingData.empty:
-            missingFileName = f"{outputName}_MissingData.xlsx"
-            # Eliminar la columna de indicador antes de guardar
-            missingDataToSave = missingData.drop('_merge', axis=1)
-            missingDataToSave.to_excel(missingFileName, index=False)
-            print(f"✓ Missing Data guardado: {missingFileName}")
-            print(f"  - {len(missingData)} estudiantes sin datos en Second Result")
+            suggested_name = f"{outputName}_MissingData.xlsx"
+
+            filepath_missing = filedialog.asksaveasfilename(
+                parent=parent_window,
+                title="Guardar Missing Data (Final Score)",
+                initialdir=os.path.dirname(filepath_crudo),
+                initialfile=suggested_name,
+                defaultextension=".xlsx",
+                filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")]
+            )
+
+            if filepath_missing:
+                missingDataToSave = missingData.drop('_merge', axis=1)
+                missingDataToSave.to_excel(filepath_missing, index=False)
+                print(f"✓ Missing Data guardado: {filepath_missing}")
+                print(f"  - {len(missingData)} estudiantes sin datos en Second Result")
         else:
             print("✓ No hay datos faltantes (todos los estudiantes tienen ambos resultados)")
 
         # PASO 3: Preparar y guardar RESULTADO FINAL
-
         mergedData2 = pd.merge(
             firstResultData,
             secondResultData[['DNI', 'result2']],
@@ -380,32 +484,35 @@ def mergeFinalResults(firstResultData, secondResultData, outputName):
             indicator=True
         )
 
-        # Eliminar columna de indicador
         finalData = mergedData2.drop('_merge', axis=1)
 
-        #print("Final Data",finalData)
-        # Definir las columnas finales
-        # Verificar si existen columnas de tiebreaker en el primer resultado
         columnas_finales = ['DNI', 'NOMBRES', 'APELLIDOS', 'CARRERA']
-
-        # Agregar columnas de tiebreaker si existen
         tiebreaker_columns = ['tiebreaker_correct', 'tiebreaker_failed', 'tiebreaker_empty']
         for col in tiebreaker_columns:
             if col in finalData.columns:
                 columnas_finales.append(col)
-
-        # Agregar resultados
         columnas_finales.extend(['result1', 'result2'])
 
-        # Filtrar solo las columnas que existen
         columnas_disponibles = [col for col in columnas_finales if col in finalData.columns]
         finalDataFiltered = finalData[columnas_disponibles]
 
-        # Guardar resultado final
-        finalFileName = f"{outputName}_ResultadoFinal.xlsx"
-        finalDataFiltered.to_excel(finalFileName, index=False)
-        print(f"✓ Resultado Final guardado: {finalFileName}")
-        print(f"  - Columnas incluidas: {', '.join(columnas_disponibles)}")
+        suggested_name = f"{outputName}_ResultadoFinal.xlsx"
+
+        filepath_final = filedialog.asksaveasfilename(
+            parent=parent_window,
+            title="Guardar Resultado Final (Final Score)",
+            initialdir=os.path.dirname(filepath_crudo),
+            initialfile=suggested_name,
+            defaultextension=".xlsx",
+            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")]
+        )
+
+        if not filepath_final:
+            print("Usuario canceló el guardado del resultado final")
+            return False
+
+        finalDataFiltered.to_excel(filepath_final, index=False)
+        print(f"✓ Resultado Final guardado: {filepath_final}")
 
         # Resumen estadístico
         print("\n" + "=" * 50)
@@ -504,38 +611,61 @@ def generateAttendanceReport(identifierData, studentsData):
         return None, None
 
 
-def saveAttendanceReport(attendanceData, processName):
+def saveAttendanceReport(attendanceData, processName, parent_window=None):
     """
-    Guarda el reporte de asistencia en un archivo Excel
+    Guarda el reporte de asistencia en un archivo Excel con diálogo de guardado
 
     Parameters:
     - attendanceData: DataFrame con la columna ASISTENCIA
-    - processName: Nombre del proceso para el archivo
+    - processName: Nombre del proceso para el archivo (nombre sugerido)
+    - parent_window: Ventana padre para el diálogo (opcional)
 
     Returns:
-    - True si se guardó correctamente, False en caso contrario
+    - Tupla (success: bool, filepath: str)
     """
     try:
-        print(f"\nGuardando reporte de asistencia...")
 
-        # Construir nombre del archivo
-        filename = f"{processName}_Asistencia.xlsx"
+        print(f"\nAbriendo diálogo para guardar reporte de asistencia...")
+
+        # Nombre sugerido para el archivo
+        suggested_filename = f"{processName}_Asistencia.xlsx"
+
+        # Obtener carpeta de documentos del usuario como ubicación inicial
+        initial_dir = os.path.expanduser("~/Documents")
+
+        # Abrir diálogo de guardado
+        filepath = filedialog.asksaveasfilename(
+            parent=parent_window,
+            title="Guardar Reporte de Asistencia",
+            initialdir=initial_dir,
+            initialfile=suggested_filename,
+            defaultextension=".xlsx",
+            filetypes=[
+                ("Excel files", "*.xlsx"),
+                ("All files", "*.*")
+            ]
+        )
+
+        # Si el usuario canceló, retornar
+        if not filepath:
+            print("Usuario canceló el guardado")
+            return False, None
 
         # Ordenar columnas en orden lógico
-        column_order = ['DNI', 'NOMBRES', 'APELLIDOS', 'CARRERA', 'AULA', 'ASISTENCIA']
+        column_order = ['DNI', 'NOMBRES', 'APELLIDOS', 'CARRERA', 'ASISTENCIA']
 
-        # Filtrar solo columnas que existen (por si hay adicionales)
+        # Filtrar solo columnas que existen
         existing_columns = [col for col in column_order if col in attendanceData.columns]
         attendance_to_save = attendanceData[existing_columns]
 
         # Guardar en Excel
-        attendance_to_save.to_excel(filename, index=False)
+        attendance_to_save.to_excel(filepath, index=False)
 
-        print(f"✓ Archivo guardado exitosamente: {filename}")
-        return True
+        print(f"✓ Archivo guardado exitosamente: {filepath}")
+        return True, filepath
 
     except Exception as e:
         print(f"\nERROR al guardar reporte de asistencia: {str(e)}")
         import traceback
         traceback.print_exc()
-        return False
+        return False, None

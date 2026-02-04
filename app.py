@@ -87,6 +87,7 @@ resultData = None
 
 # Variable para el reporte de asistencia
 attendanceReportData = None
+unmatchedScannerData = None
 attendanceContentVisible = False  # Estado del frame colapsable
 
 def updateDataCounters():
@@ -597,7 +598,7 @@ def saveConfig():
 # ==================== ATTENDANCE FUNCTIONS ====================
 def checkAttendance():
     """Genera el reporte de asistencia comparando Identifier con Students"""
-    global attendanceReportData, identifierData, studentsData
+    global attendanceReportData, unmatchedScannerData  # <-- MODIFICADO: agregar unmatchedScannerData
 
     try:
         # Validar que ambos archivos estén cargados
@@ -621,7 +622,7 @@ def checkAttendance():
         print("Generando reporte de asistencia...")
 
         # Llamar a la función de procesamiento
-        attendanceReportData, stats = processorFunctions.generateAttendanceReport(
+        attendanceReportData, stats, unmatchedData = processorFunctions.generateAttendanceReport(  # <-- MODIFICADO
             identifierData,
             studentsData
         )
@@ -629,6 +630,9 @@ def checkAttendance():
         if attendanceReportData is None or stats is None:
             showMessage("¡ERROR!\nNo se pudo generar el reporte de asistencia.")
             return
+
+        # <-- NUEVO: Guardar datos unmatched
+        unmatchedScannerData = unmatchedData
 
         # Actualizar UI con estadísticas
         updateAttendanceUI(stats)
@@ -643,6 +647,11 @@ def checkAttendance():
             f"Presentes: {stats['present']} ({stats['percentage']:.1f}%)\n"
             f"Ausentes: {stats['absent']}"
         )
+
+        # <-- NUEVO: Agregar info de unmatched al mensaje
+        if unmatchedData is not None and not unmatchedData.empty:
+            message += f"\n\nScanner sin match: {len(unmatchedData)} registros"
+
         showMessage(message)
 
     except Exception as e:
@@ -650,11 +659,13 @@ def checkAttendance():
         print(f"ERROR: {error_message}")
         showMessage(error_message)
         attendanceReportData = None
+        unmatchedScannerData = None  # <-- NUEVO
         updateAttendanceUI(None)
+
 
 def downloadAttendance():
     """Descarga el reporte de asistencia en formato Excel"""
-    global attendanceReportData, processName, processYear
+    global attendanceReportData, processName, processYear, unmatchedScannerData  # <-- MODIFICADO
 
     try:
         # Validar que el reporte exista
@@ -670,6 +681,7 @@ def downloadAttendance():
         # Llamar a la función de guardado con diálogo
         success, filepath = processorFunctions.saveAttendanceReport(
             attendanceReportData,
+            unmatchedScannerData,  # <-- NUEVO PARÁMETRO
             fullProcessName,
             app  # Pasar ventana principal como parent
         )
@@ -677,7 +689,21 @@ def downloadAttendance():
         if success and filepath:
             import os
             filename = os.path.basename(filepath)
-            showMessage(f"¡Éxito!\n\nArchivo guardado:\n{filename}\n\nEn:\n{os.path.dirname(filepath)}")
+
+            # <-- NUEVO: Mensaje personalizado según contenido
+            if unmatchedScannerData is not None and not unmatchedScannerData.empty:
+                msg = (f"¡Éxito!\n\n"
+                       f"Archivo guardado con 2 hojas:\n"
+                       f"• Asistencia ({len(attendanceReportData)} estudiantes)\n"
+                       f"• Scanner Sin Match ({len(unmatchedScannerData)} registros)\n\n"
+                       f"{filename}\n\n"
+                       f"En:\n{os.path.dirname(filepath)}")
+            else:
+                msg = (f"¡Éxito!\n\n"
+                       f"Archivo guardado:\n{filename}\n\n"
+                       f"En:\n{os.path.dirname(filepath)}")
+
+            showMessage(msg)
         elif not success and filepath is None:
             # Usuario canceló
             pass  # No mostrar mensaje de error
@@ -714,8 +740,9 @@ def updateAttendanceUI(stats):
 
 def clearAttendanceData():
     """Limpia los datos de asistencia y resetea la UI"""
-    global attendanceReportData
+    global attendanceReportData, unmatchedScannerData
     attendanceReportData = None
+    unmatchedScannerData = None
     updateAttendanceUI(None)
 
 def toggleAttendanceFrame():

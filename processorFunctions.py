@@ -551,9 +551,10 @@ def generateAttendanceReport(identifierData, studentsData):
     - studentsData: DataFrame con columnas ['DNI', 'NOMBRES', 'APELLIDOS', 'CARRERA']
 
     Returns:
-    - Tupla (attendanceDF, stats_dict)
+    - Tupla (attendanceDF, stats_dict, unmatched_scanner_df)
       - attendanceDF: DataFrame con columna 'ASISTENCIA' agregada
       - stats_dict: {'total': int, 'present': int, 'absent': int, 'percentage': float}
+      - unmatched_scanner_df: DataFrame con registros del scanner sin match + MejorCoincidencia
     """
     try:
         print("=" * 50)
@@ -600,23 +601,74 @@ def generateAttendanceReport(identifierData, studentsData):
         print(f"  Total: {total_students}")
         print(f"  Presentes: {present_count} ({percentage:.2f}%)")
         print(f"  Ausentes: {absent_count}")
+
+        # ============================================================
+        # NUEVO: Detectar registros del scanner sin coincidencia
+        # ============================================================
+        print(f"\nDetectando DNIs del scanner sin coincidencia...")
+
+        # LEFT JOIN entre identifier y students
+        unmatched_left = pd.merge(
+            identifierData,
+            studentsData,
+            left_on='dni',
+            right_on='DNI',
+            how='left',
+            indicator=True
+        )
+
+        # Filtrar solo los que NO hicieron match (left_only)
+        unmatched_scanner = unmatched_left[unmatched_left['_merge'] == 'left_only']
+
+        if not unmatched_scanner.empty:
+            # Crear copia explícita para evitar warnings
+            unmatched_scanner = unmatched_scanner.copy()
+
+            # RIGHT JOIN para obtener estudiantes que no asistieron
+            students_right = pd.merge(
+                identifierData,
+                studentsData,
+                left_on='dni',
+                right_on='DNI',
+                how='right',
+                indicator=True
+            )
+            students_right_no_match = students_right[students_right['_merge'] == 'right_only']
+
+            # Aplicar búsqueda de mejor coincidencia (umbral 6)
+            print(f"  Buscando coincidencias aproximadas para {len(unmatched_scanner)} registros...")
+            best_matches = searchMatchAprox(unmatched_scanner, students_right_no_match, 6)
+
+            # Agregar columna de mejor coincidencia
+            unmatched_scanner.loc[:, 'MejorCoincidencia'] = best_matches
+
+            # Limpiar columna temporal _merge
+            unmatched_scanner = unmatched_scanner.drop('_merge', axis=1)
+
+            print(f"  ✓ {len(unmatched_scanner)} DNIs del scanner sin coincidencia detectados")
+        else:
+            # Si no hay unmatched, crear DataFrame vacío
+            unmatched_scanner = pd.DataFrame()
+            print(f"  ✓ Todos los DNIs del scanner tienen coincidencia")
+
         print("=" * 50)
 
-        return attendance_df, stats
+        return attendance_df, stats, unmatched_scanner
 
     except Exception as e:
         print(f"\nERROR en generateAttendanceReport: {str(e)}")
         import traceback
         traceback.print_exc()
-        return None, None
+        return None, None, None
 
 
-def saveAttendanceReport(attendanceData, processName, parent_window=None):
+def saveAttendanceReport(attendanceData, unmatchedScannerData, processName, parent_window=None):
     """
-    Guarda el reporte de asistencia en un archivo Excel con diálogo de guardado
+    Guarda el reporte de asistencia en un archivo Excel con múltiples hojas
 
     Parameters:
     - attendanceData: DataFrame con la columna ASISTENCIA
+    - unmatchedScannerData: DataFrame con registros del scanner sin match
     - processName: Nombre del proceso para el archivo (nombre sugerido)
     - parent_window: Ventana padre para el diálogo (opcional)
 
@@ -624,7 +676,6 @@ def saveAttendanceReport(attendanceData, processName, parent_window=None):
     - Tupla (success: bool, filepath: str)
     """
     try:
-
         print(f"\nAbriendo diálogo para guardar reporte de asistencia...")
 
         # Nombre sugerido para el archivo
@@ -651,17 +702,45 @@ def saveAttendanceReport(attendanceData, processName, parent_window=None):
             print("Usuario canceló el guardado")
             return False, None
 
-        # Ordenar columnas en orden lógico
+        # Ordenar columnas en orden lógico para hoja de asistencia
         column_order = ['DNI', 'NOMBRES', 'APELLIDOS', 'CARRERA', 'ASISTENCIA']
 
         # Filtrar solo columnas que existen
         existing_columns = [col for col in column_order if col in attendanceData.columns]
         attendance_to_save = attendanceData[existing_columns]
 
-        # Guardar en Excel
-        attendance_to_save.to_excel(filepath, index=False)
+        # ============================================================
+        # NUEVO: Guardar múltiples hojas usando ExcelWriter
+        # ============================================================
+        with pd.ExcelWriter(filepath, engine='openpyxl') as writer:
+            # Hoja 1: Asistencia completa
+            attendance_to_save.to_excel(writer, sheet_name='Asistencia', index=False)
 
-        print(f"✓ Archivo guardado exitosamente: {filepath}")
+            # Hoja 2: Scanner sin match (solo si hay datos)
+            if not unmatchedScannerData.empty:
+                # Ordenar columnas: priorizar idTab, dni, MejorCoincidencia
+                priority_cols = ['idTab', 'dni', 'MejorCoincidencia']
+                other_cols = [col for col in unmatchedScannerData.columns
+                              if col not in priority_cols]
+
+                # Construir orden final (solo columnas que existen)
+                final_order = [col for col in priority_cols if col in unmatchedScannerData.columns]
+                final_order.extend(other_cols)
+
+                unmatched_to_save = unmatchedScannerData[final_order]
+                unmatched_to_save.to_excel(writer, sheet_name='Scanner Sin Match', index=False)
+
+        # ============================================================
+        # NUEVO: Mensaje de éxito mejorado
+        # ============================================================
+        if not unmatchedScannerData.empty:
+            print(f"✓ Archivo guardado con 2 hojas: {filepath}")
+            print(f"  - Hoja 'Asistencia': {len(attendanceData)} estudiantes")
+            print(f"  - Hoja 'Scanner Sin Match': {len(unmatchedScannerData)} registros")
+        else:
+            print(f"✓ Archivo guardado con 1 hoja: {filepath}")
+            print(f"  - Hoja 'Asistencia': {len(attendanceData)} estudiantes")
+
         return True, filepath
 
     except Exception as e:
@@ -669,7 +748,6 @@ def saveAttendanceReport(attendanceData, processName, parent_window=None):
         import traceback
         traceback.print_exc()
         return False, None
-
 
 # ==================== COURSE ANALYSIS FUNCTIONS ====================
 

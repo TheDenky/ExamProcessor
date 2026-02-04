@@ -28,13 +28,15 @@ notebook.pack(fill='both', expand=True, padx=10, pady=10)
 loginFrame = ttk.Frame(notebook)
 configFrame = ttk.Frame(notebook)
 tab2 = ttk.Frame(notebook)
-finalScoreTab = ttk.Frame(notebook)  # NUEVA PESTAÑA
+finalScoreTab = ttk.Frame(notebook)
+courseAnalysisTab = ttk.Frame(notebook)
 aboutFrame = ttk.Frame(notebook)
 
 notebook.add(loginFrame, text="Login")
 notebook.add(configFrame, text="Config", state="disabled")
 notebook.add(tab2, text="Processor", state="disabled")
-notebook.add(finalScoreTab, text="Final Score", state="disabled")  # AGREGADA
+notebook.add(finalScoreTab, text="Final Score", state="disabled")
+notebook.add(courseAnalysisTab, text="Course Analysis", state="disabled")
 notebook.add(aboutFrame, text="About")
 
 # *********** Variables para uso de procesamiento ************************
@@ -43,9 +45,17 @@ responsesFileDirection = ''
 keyFileDirection = ''
 studentsFileDirection = ''
 
-# NUEVAS VARIABLES PARA FINAL SCORE
+# VARIABLES PARA FINAL SCORE
 firstResultData = []
 secondResultData = []
+
+# ========== NUEVAS VARIABLES PARA COURSE ANALYSIS ==========
+courseStructureData = {}  # Diccionario con estructura de cursos
+courseIdentifierData = []  # Datos específicos para Course Analysis
+courseResponsesData = []
+courseKeyData = []
+courseStudentsData = []
+courseAnalysisResult = []
 
 # Variables de configuración del proceso
 processYear = "2026"
@@ -167,7 +177,8 @@ def showMessage(text):
 def accesoCorrecto():
     notebook.tab(1, state="normal")
     notebook.tab(2, state="normal")
-    notebook.tab(3, state="normal")  # Habilitar Final Score
+    notebook.tab(3, state="normal")
+    notebook.tab(4, state="normal")
     notebook.tab(0, state="disabled")
 
 
@@ -175,12 +186,14 @@ def logout():
     """Función para cerrar sesión y volver al login"""
     passEntry.delete(0, 'end')
     clearAllFields()
-    clearFinalScoreFields()  # Limpiar campos de Final Score
+    clearFinalScoreFields()
+    clearCourseAnalysisFields() # Limpiar campos de Final Score
     clearAttendanceData()  # Limpiar datos de asistencia
 
     notebook.tab(1, state="disabled")
     notebook.tab(2, state="disabled")
     notebook.tab(3, state="disabled")  # Deshabilitar Final Score
+    notebook.tab(4, state="disabled")
     notebook.tab(0, state="normal")
 
     notebook.select(0)
@@ -292,7 +305,6 @@ def selectKey():
             keyField.insert(0, archivo)
 
         updateDataCounters()
-
 
 def selectStudents():
     global studentsData
@@ -720,6 +732,302 @@ def toggleAttendanceFrame():
         attendanceContentFrame.pack(fill=X, pady=5)
         toggleAttendanceBtn.config(text="▼")
         attendanceContentVisible = True
+
+
+# ==================== COURSE ANALYSIS FUNCTIONS ====================
+
+def updateCourseAnalysisCounters():
+    """Actualiza los contadores de datos cargados en Course Analysis"""
+    structureCount = sum(len(cursos) for cursos in courseStructureData.values()) if courseStructureData else 0
+    identifierCount = len(courseIdentifierData) if isinstance(courseIdentifierData, pd.DataFrame) else 0
+    responsesCount = len(courseResponsesData) if isinstance(courseResponsesData, pd.DataFrame) else 0
+    keyCount = len(courseKeyData) if isinstance(courseKeyData, pd.DataFrame) else 0  # MODIFICAR ESTA LÍNEA
+    studentsCount = len(courseStudentsData) if isinstance(courseStudentsData, pd.DataFrame) else 0
+
+    courseStructureCountLabel.config(text=f"Course Structure: {structureCount} courses configured")
+    courseIdentifierCountLabel.config(text=f"Identifier: {identifierCount} records")
+    courseResponsesCountLabel.config(text=f"Responses: {responsesCount} records")
+    courseKeyCountLabel.config(text=f"Key: {keyCount} records")  # MODIFICAR ESTA LÍNEA
+    courseStudentsCountLabel.config(text=f"Students: {studentsCount} records")
+
+
+def clearCourseAnalysisFields():
+    """Limpia todos los campos de Course Analysis"""
+    global courseStructureData, courseIdentifierData, courseResponsesData, courseKeyData, courseStudentsData, courseAnalysisResult
+
+    courseStructureField.delete(0, 'end')
+    courseIdentifierField.delete(0, 'end')
+    courseResponsesField.delete(0, 'end')
+    courseKeyField.delete(0, 'end')  # AGREGAR ESTA LÍNEA
+    courseStudentsField.delete(0, 'end')
+
+    courseStructureData = {}
+    courseIdentifierData = []
+    courseResponsesData = []
+    courseKeyData = []  # AGREGAR ESTA LÍNEA
+    courseStudentsData = []
+    courseAnalysisResult = []
+
+    updateCourseAnalysisCounters()
+
+
+def selectCourseStructure():
+    """Selecciona y carga el archivo de estructura de cursos"""
+    global courseStructureData
+
+    archivo = filedialog.askopenfilename(
+        title="Selecciona archivo de estructura de cursos",
+        filetypes=[("Archivos de excel", "*.xls*"), ("Todos los archivos", "*.*")]
+    )
+
+    if archivo:
+        courseStructureField.delete(0, 'end')
+
+        try:
+            courseStructureData, success, error_message = processorFunctions.loadCourseStructure(archivo)
+
+            if not success:
+                showMessage(f"Error al cargar estructura:\n\n{error_message}")
+                courseStructureData = {}
+            else:
+                courseStructureField.insert(0, archivo)
+                total_courses = sum(len(cursos) for cursos in courseStructureData.values())
+                showMessage(
+                    f"¡Estructura cargada!\n\n{len(courseStructureData)} temas\n{total_courses} cursos configurados")
+
+        except Exception as e:
+            courseStructureField.delete(0, 'end')
+            courseStructureData = {}
+            print(f"Error al cargar estructura: {e}")
+            showMessage(f"Error al abrir archivo:\n{str(e)}")
+
+        updateCourseAnalysisCounters()
+
+
+def selectIdentifierCourse():
+    """Selecciona archivo Identifier para Course Analysis"""
+    global courseIdentifierData
+
+    archivo = filedialog.askopenfilename(
+        title="Selecciona archivo Identifier",
+        filetypes=[("Archivos de datos", "*.dat"), ("Todos los archivos", "*.*")]
+    )
+
+    if archivo:
+        courseIdentifierField.delete(0, 'end')
+
+        try:
+            courseIdentifierData = pd.DataFrame(processorFunctions.openIdentifier(archivo))
+
+            if courseIdentifierData.empty:
+                print("Fallo al cargar identificadores.")
+                showMessage("Archivo incorrecto!")
+                courseIdentifierData = []
+            else:
+                courseIdentifierField.insert(0, archivo)
+
+        except Exception as e:
+            courseIdentifierField.delete(0, 'end')
+            courseIdentifierData = []
+            print(f"Error: {e}")
+            showMessage(f"Error al abrir archivo:\n{str(e)}")
+
+        updateCourseAnalysisCounters()
+
+
+def selectResponsesCourse():
+    """Selecciona archivo Responses para Course Analysis"""
+    global courseResponsesData
+
+    archivo = filedialog.askopenfilename(
+        title="Selecciona archivo Responses",
+        filetypes=[("Archivos de datos", "*.dat"), ("Todos los archivos", "*.*")]
+    )
+
+    if archivo:
+        courseResponsesField.delete(0, 'end')
+
+        try:
+            courseResponsesData = pd.DataFrame(
+                processorFunctions.openResponses(archivo, questionsQuantity, tiebreakerQuestionsQuantity)
+            )
+
+            if courseResponsesData.empty:
+                print("Fallo al cargar respuestas.")
+                showMessage("Archivo incorrecto!")
+                courseResponsesData = []
+            else:
+                courseResponsesField.insert(0, archivo)
+
+        except Exception as e:
+            courseResponsesField.delete(0, 'end')
+            courseResponsesData = []
+            print(f"Error: {e}")
+            showMessage(f"Error al abrir archivo:\n{str(e)}")
+
+        updateCourseAnalysisCounters()
+
+
+def selectKeyCourse():
+    """Selecciona archivo Key para Course Analysis"""
+    global courseKeyData
+
+    archivo = filedialog.askopenfilename(
+        title="Selecciona archivo Key (Clave)",
+        filetypes=[("Archivos de datos", "*.dat"), ("Todos los archivos", "*.*")]
+    )
+
+    if archivo:
+        courseKeyField.delete(0, 'end')
+
+        try:
+            courseKeyData = pd.DataFrame(
+                processorFunctions.openKeys(archivo, questionsQuantity, tiebreakerQuestionsQuantity)
+            )
+
+            if courseKeyData.empty:
+                print("Fallo al cargar claves.")
+                showMessage("Archivo incorrecto!")
+                courseKeyData = []
+            else:
+                courseKeyField.insert(0, archivo)
+
+        except Exception as e:
+            courseKeyField.delete(0, 'end')
+            courseKeyData = []
+            print(f"Error: {e}")
+            showMessage(f"Error al abrir archivo:\n{str(e)}")
+
+        updateCourseAnalysisCounters()
+
+def selectStudentsCourse():
+    """Selecciona archivo Students para Course Analysis"""
+    global courseStudentsData
+
+    archivo = filedialog.askopenfilename(
+        title="Selecciona archivo Students",
+        filetypes=[("Archivos de excel", "*.xls*"), ("Todos los archivos", "*.*")]
+    )
+
+    if archivo:
+        courseStudentsField.delete(0, 'end')
+
+        try:
+            courseStudentsData = processorFunctions.openStudentsData(archivo)
+
+            required_columns = ['DNI', 'NOMBRES', 'APELLIDOS', 'CARRERA']
+            missing_columns = [col for col in required_columns if col not in courseStudentsData.columns]
+
+            if missing_columns:
+                error_msg = f"Faltan columnas:\n{', '.join(missing_columns)}"
+                showMessage(error_msg)
+                courseStudentsData = []
+            else:
+                courseStudentsField.insert(0, archivo)
+
+        except Exception as e:
+            courseStudentsField.delete(0, 'end')
+            courseStudentsData = []
+            print(f"Error: {e}")
+            showMessage(f"Error al abrir archivo:\n{str(e)}")
+
+        updateCourseAnalysisCounters()
+
+
+def processCourseAnalysis():
+    """Procesa el análisis por curso"""
+    global courseStructureData, courseIdentifierData, courseResponsesData, courseKeyData, courseStudentsData
+    global processName, processYear, examType, questionsQuantity
+
+    try:
+        # Validar que todos los datos estén cargados
+        if not courseStructureData:
+            showMessage("¡ERROR!\nPor favor cargue la estructura de cursos.")
+            return
+
+        if isinstance(courseIdentifierData, list) or courseIdentifierData.empty:
+            showMessage("¡ERROR!\nPor favor cargue el archivo Identifier.")
+            return
+
+        if isinstance(courseResponsesData, list) or courseResponsesData.empty:
+            showMessage("¡ERROR!\nPor favor cargue el archivo Responses.")
+            return
+
+        if isinstance(courseKeyData, list) or courseKeyData.empty:
+            showMessage("¡ERROR!\nPor favor cargue el archivo Key (Clave).")
+            return
+
+        if isinstance(courseStudentsData, list) or courseStudentsData.empty:
+            showMessage("¡ERROR!\nPor favor cargue el archivo Students.")
+            return
+
+        # Crear nombre del proceso
+        fullProcessName = f"{processName}_{examType.replace(' ', '_').upper()}_{processYear}"
+
+        print("\n" + "=" * 60)
+        print("INICIANDO ANÁLISIS POR CURSO")
+        print("=" * 60)
+
+        # Paso 1: Calcular estadísticas por curso
+        print("\n[1/3] Calculando estadísticas por curso...")
+        courseStats, success_calc, error_calc = processorFunctions.calculateCourseStatistics(
+            courseKeyData,  # MODIFICAR: usar courseKeyData en lugar de keyData
+            courseResponsesData,
+            courseStructureData,
+            questionsQuantity
+        )
+
+        if not success_calc:
+            showMessage(f"Error al calcular estadísticas:\n\n{error_calc}")
+            return
+
+        print(f"✓ Estadísticas calculadas: {len(courseStats)} registros")
+
+        # Paso 2: Combinar con datos de estudiantes y guardar
+        print("\n[2/3] Combinando con datos de estudiantes...")
+        success_merge, filepath = processorFunctions.mergeCourseStatsWithStudents(
+            courseStats,
+            courseIdentifierData,
+            courseStudentsData,
+            courseStructureData,
+            fullProcessName,
+            app
+        )
+
+        if not success_merge:
+            if filepath is None:
+                print("Usuario canceló el guardado")
+            else:
+                showMessage("Error al guardar el archivo.")
+            return
+
+        print("✓ Datos combinados y archivo guardado")
+
+        # Paso 3: Mostrar mensaje de éxito
+        print("\n[3/3] Proceso completado exitosamente")
+        print("=" * 60 + "\n")
+
+        import os
+        filename = os.path.basename(filepath)
+        showMessage(
+            f"¡ÉXITO!\n\n"
+            f"Análisis por curso completado.\n\n"
+            f"Archivo generado:\n{filename}\n\n"
+            f"El archivo contiene 3 hojas:\n"
+            f"• Resultados Detallados\n"
+            f"• Resumen por Curso\n"
+            f"• Estructura de Cursos"
+        )
+
+        # Limpiar campos después del procesamiento exitoso
+        clearCourseAnalysisFields()
+
+    except Exception as e:
+        error_message = f"Error durante el análisis:\n\n{str(e)}"
+        print(f"ERROR: {error_message}")
+        import traceback
+        traceback.print_exc()
+        showMessage(error_message)
 
 # ============= LOGIN FRAME =============
 img_path = resource_path("img/EPicon.ico")
@@ -1217,6 +1525,206 @@ processFinalScoreButton = ttk.Button(
     command=processFinalScore
 )
 processFinalScoreButton.pack(pady=20)
+
+# ============= COURSE ANALYSIS TAB =============
+
+# Frame superior con título
+courseAnalysisTitleFrame = ttk.Frame(courseAnalysisTab)
+courseAnalysisTitleFrame.pack(fill=X, padx=20, pady=5)
+
+courseAnalysisTitle = ttk.Label(
+    courseAnalysisTitleFrame,
+    text="COURSE ANALYSIS",
+    font=("Comic Sans MS", 24),
+    bootstyle="info"
+)
+courseAnalysisTitle.pack(side=LEFT, expand=True)
+
+# Frame para configuración actual
+courseConfigDisplayFrame = ttk.LabelFrame(courseAnalysisTab, text="Current Configuration")
+courseConfigDisplayFrame.pack(fill=X, padx=20, pady=10, ipadx=10, ipady=10)
+
+fullProcessName = f"{processName}_{examType.replace(' ', '_').upper()}_{processYear}"
+courseProcessNameLabel = ttk.Label(
+    courseConfigDisplayFrame,
+    text=f"Process: {fullProcessName}",
+    font=("Helvetica", 10)
+)
+courseProcessNameLabel.pack(anchor=W)
+
+courseQuestionsLabel = ttk.Label(
+    courseConfigDisplayFrame,
+    text=f"Questions: {questionsQuantity}",
+    font=("Helvetica", 10)
+)
+courseQuestionsLabel.pack(anchor=W)
+
+# Frame para estadísticas de datos
+courseStatsFrame = ttk.LabelFrame(courseAnalysisTab, text="Data Statistics")
+courseStatsFrame.pack(fill=X, padx=20, pady=10, ipadx=10, ipady=10)
+
+courseStructureCountLabel = ttk.Label(
+    courseStatsFrame,
+    text="Course Structure: 0 courses configured",
+    font=("Helvetica", 10),
+    bootstyle="info"
+)
+courseStructureCountLabel.pack(anchor=W, pady=2)
+
+courseIdentifierCountLabel = ttk.Label(
+    courseStatsFrame,
+    text="Identifier: 0 records",
+    font=("Helvetica", 10),
+    bootstyle="info"
+)
+courseIdentifierCountLabel.pack(anchor=W, pady=2)
+
+courseResponsesCountLabel = ttk.Label(
+    courseStatsFrame,
+    text="Responses: 0 records",
+    font=("Helvetica", 10),
+    bootstyle="info"
+)
+courseResponsesCountLabel.pack(anchor=W, pady=2)
+
+courseStudentsCountLabel = ttk.Label(
+    courseStatsFrame,
+    text="Students: 0 records",
+    font=("Helvetica", 10),
+    bootstyle="info"
+)
+courseStudentsCountLabel.pack(anchor=W, pady=2)
+
+# AGREGAR ESTE LABEL:
+courseKeyCountLabel = ttk.Label(
+    courseStatsFrame,
+    text="Key: 0 records",  # CAMBIAR de "Key (from Processor): 0 records"
+    font=("Helvetica", 10),
+    bootstyle="info"  # CAMBIAR de "warning" a "info"
+)
+courseKeyCountLabel.pack(anchor=W, pady=2)
+
+# Frame para cargar estructura de cursos
+courseStructureFrame = ttk.LabelFrame(
+    courseAnalysisTab,
+    text="Cargar Estructura de Cursos (Excel con columnas: Tema, Curso, Pregunta_Inicio, Pregunta_Fin)"
+)
+courseStructureFrame.pack(fill=X, padx=20, pady=10, ipadx=10, ipady=10)
+
+courseStructureFileFrame = ttk.Frame(courseStructureFrame)
+courseStructureFileFrame.pack(fill=X, pady=10)
+
+ttk.Label(
+    courseStructureFileFrame,
+    text="Course Config",
+    font=("Helvetica", 12)
+).pack(side=LEFT, padx=5)
+
+courseStructureField = ttk.Entry(courseStructureFileFrame, width=30)
+courseStructureField.pack(side=LEFT, padx=5, fill=X, expand=YES)
+
+ttk.Button(
+    courseStructureFileFrame,
+    text="Upload",
+    bootstyle="success-outline",
+    command=selectCourseStructure
+).pack(side=LEFT, padx=5)
+
+# Frame para cargar archivos de datos
+courseDataFrame = ttk.LabelFrame(
+    courseAnalysisTab,
+    text="Cargar Archivos de Datos"
+)
+courseDataFrame.pack(fill=X, padx=20, pady=10, ipadx=10, ipady=10)
+
+# Identifier
+courseIdentifierFrame = ttk.Frame(courseDataFrame)
+courseIdentifierFrame.pack(fill=X, pady=10)
+
+ttk.Label(
+    courseIdentifierFrame,
+    text="Identifier",
+    font=("Helvetica", 12)
+).pack(side=LEFT, padx=5)
+
+courseIdentifierField = ttk.Entry(courseIdentifierFrame, width=30)
+courseIdentifierField.pack(side=LEFT, padx=5, fill=X, expand=YES)
+
+ttk.Button(
+    courseIdentifierFrame,
+    text="Upload",
+    bootstyle="success-outline",
+    command=selectIdentifierCourse
+).pack(side=LEFT, padx=5)
+
+# Responses
+courseResponsesFrame = ttk.Frame(courseDataFrame)
+courseResponsesFrame.pack(fill=X, pady=10)
+
+ttk.Label(
+    courseResponsesFrame,
+    text="Responses",
+    font=("Helvetica", 12)
+).pack(side=LEFT, padx=5)
+
+courseResponsesField = ttk.Entry(courseResponsesFrame, width=30)
+courseResponsesField.pack(side=LEFT, padx=5, fill=X, expand=YES)
+
+ttk.Button(
+    courseResponsesFrame,
+    text="Upload",
+    bootstyle="success-outline",
+    command=selectResponsesCourse
+).pack(side=LEFT, padx=5)
+
+courseKeyFrame = ttk.Frame(courseDataFrame)
+courseKeyFrame.pack(fill=X, pady=10)
+
+ttk.Label(
+    courseKeyFrame,
+    text="Clave (Key)",
+    font=("Helvetica", 12)
+).pack(side=LEFT, padx=5)
+
+courseKeyField = ttk.Entry(courseKeyFrame, width=30)
+courseKeyField.pack(side=LEFT, padx=5, fill=X, expand=YES)
+
+ttk.Button(
+    courseKeyFrame,
+    text="Upload",
+    bootstyle="success-outline",
+    command=selectKeyCourse
+).pack(side=LEFT, padx=5)
+
+# Students
+courseStudentsFrame = ttk.Frame(courseDataFrame)
+courseStudentsFrame.pack(fill=X, pady=10)
+
+ttk.Label(
+    courseStudentsFrame,
+    text="Students",
+    font=("Helvetica", 12)
+).pack(side=LEFT, padx=5)
+
+courseStudentsField = ttk.Entry(courseStudentsFrame, width=30)
+courseStudentsField.pack(side=LEFT, padx=5, fill=X, expand=YES)
+
+ttk.Button(
+    courseStudentsFrame,
+    text="Upload",
+    bootstyle="success-outline",
+    command=selectStudentsCourse
+).pack(side=LEFT, padx=5)
+
+# Botón de proceso
+analyzeCourseButton = ttk.Button(
+    courseAnalysisTab,
+    text="ANALYZE BY COURSE",
+    bootstyle="success-outline",
+    width=25,
+    command=processCourseAnalysis
+)
+analyzeCourseButton.pack(pady=20)
 
 # ============= ABOUT FRAME =============
 

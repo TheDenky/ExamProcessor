@@ -3,10 +3,10 @@
 ; Non-commercial use only
 
 #define MyAppName "Cepre Exam Processor"
-#define MyAppVersion "2.2"
+#define MyAppVersion "2.2.2"
 #define MyAppPublisher "ValleyTech - Cepre Unajma"
 #define MyAppURL "https://www.unajma.edu.pe/"
-#define MyAppExeName "ExamProcessor_v2.2.exe"
+#define MyAppExeName "ExamProcessor_v2.2.2.exe"
 #define MyAppAssocName "Exam Processor File"
 #define MyAppAssocExt ".dat"
 #define MyAppAssocKey StringChange(MyAppAssocName, " ", "") + MyAppAssocExt
@@ -38,19 +38,19 @@ LicenseFile=E:\AUTOMATIZACION\GITHUBCLONE\ExamProcessor\dist\ExamProcessor_Deplo
 ; Uncomment the following line to run in non administrative install mode (install for current user only).
 ;PrivilegesRequired=lowest
 OutputDir=Output
-OutputBaseFilename=CepreExamProcessor_v2.1_Setup
+OutputBaseFilename=CepreExamProcessor_v2.2.2_Setup
 SetupIconFile=E:\AUTOMATIZACION\GITHUBCLONE\ExamProcessor\dist\ExamProcessor_Deploy\assets\icon.ico
 SolidCompression=yes
 WizardStyle=modern
 
 ; Información de versión
-VersionInfoVersion=2.2.0.0
+VersionInfoVersion=2.2.2.0
 VersionInfoDescription=Exam Processor - Sistema de Calificación Cepre
 VersionInfoCopyright=© 2026 ValleyTech
 VersionInfoCompany=Centro Preuniversitario Unajma
 
 ; Desinstalación
-UninstallDisplayName=Exam Processor 2.2
+UninstallDisplayName=Exam Processor 2.2.2
 CreateUninstallRegKey=yes
 
 ; Seguridad
@@ -81,7 +81,7 @@ Root: HKA; Subkey: "Software\Classes\{#MyAppAssocKey}\shell\open\command"; Value
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 Name: "{group}\Desinstalar Exam Processor"; Filename: "{uninstallexe}"
-Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\Exam Processor"; Filename: "{app}\ExamProcessor_v2.2.exe"; Tasks: quicklaunchicon
+Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\Exam Processor"; Filename: "{app}\ExamProcessor_v2.2.2.exe"; Tasks: quicklaunchicon
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent

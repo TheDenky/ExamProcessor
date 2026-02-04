@@ -669,3 +669,350 @@ def saveAttendanceReport(attendanceData, processName, parent_window=None):
         import traceback
         traceback.print_exc()
         return False, None
+
+
+# ==================== COURSE ANALYSIS FUNCTIONS ====================
+
+def loadCourseStructure(filepath):
+    """
+    Carga la estructura de cursos desde un archivo Excel
+
+    Parameters:
+    - filepath: Ruta al archivo Excel con la estructura
+
+    Returns:
+    - Tupla (course_dict, success, error_message)
+      - course_dict: Diccionario con estructura por tema
+      - success: bool indicando si la carga fue exitosa
+      - error_message: str con mensaje de error o None
+    """
+    try:
+        print("=" * 50)
+        print("CARGANDO ESTRUCTURA DE CURSOS")
+        print("=" * 50)
+
+        # Leer archivo Excel
+        df = pd.read_excel(filepath, dtype=str)
+
+        # Normalizar nombres de columnas (quitar espacios y mayúsculas)
+        df.columns = df.columns.str.strip().str.upper()
+
+        # Validar columnas requeridas
+        required_columns = ['TEMA', 'CURSO', 'PREGUNTA_INICIO', 'PREGUNTA_FIN']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+
+        if missing_columns:
+            error_msg = f"Faltan las siguientes columnas:\n{', '.join(missing_columns)}"
+            print(f"ERROR: {error_msg}")
+            return None, False, error_msg
+
+        # Validar que no haya filas vacías
+        df = df.dropna(subset=['TEMA', 'CURSO'])
+
+        if df.empty:
+            error_msg = "El archivo no contiene datos válidos"
+            print(f"ERROR: {error_msg}")
+            return None, False, error_msg
+
+        # Convertir columnas numéricas
+        try:
+            df['PREGUNTA_INICIO'] = pd.to_numeric(df['PREGUNTA_INICIO'], errors='raise').astype(int)
+            df['PREGUNTA_FIN'] = pd.to_numeric(df['PREGUNTA_FIN'], errors='raise').astype(int)
+        except ValueError as e:
+            error_msg = "Las columnas de preguntas deben contener solo números"
+            print(f"ERROR: {error_msg}")
+            return None, False, error_msg
+
+        # Validar rangos lógicos
+        invalid_ranges = df[df['PREGUNTA_INICIO'] > df['PREGUNTA_FIN']]
+        if not invalid_ranges.empty:
+            error_msg = f"Rangos inválidos detectados (Inicio > Fin) en filas:\n{invalid_ranges[['TEMA', 'CURSO']].to_string()}"
+            print(f"ERROR: {error_msg}")
+            return None, False, error_msg
+
+        # Convertir a diccionario estructurado
+        course_structure = {}
+
+        for _, row in df.iterrows():
+            tema = row['TEMA'].strip().upper()
+            curso = row['CURSO'].strip()
+            inicio = int(row['PREGUNTA_INICIO'])
+            fin = int(row['PREGUNTA_FIN'])
+
+            if tema not in course_structure:
+                course_structure[tema] = []
+
+            course_structure[tema].append({
+                'curso': curso,
+                'inicio': inicio,
+                'fin': fin,
+                'total': fin - inicio + 1
+            })
+
+        # Validar solapamientos dentro de cada tema
+        for tema, cursos in course_structure.items():
+            for i, curso1 in enumerate(cursos):
+                for j, curso2 in enumerate(cursos):
+                    if i >= j:
+                        continue
+
+                    # Verificar solapamiento
+                    if not (curso1['fin'] < curso2['inicio'] or curso2['fin'] < curso1['inicio']):
+                        error_msg = f"Solapamiento detectado en tema {tema}:\n{curso1['curso']} y {curso2['curso']}"
+                        print(f"ERROR: {error_msg}")
+                        return None, False, error_msg
+
+        # Imprimir resumen
+        print("\nEstructura cargada exitosamente:")
+        for tema, cursos in course_structure.items():
+            print(f"\nTema {tema}: {len(cursos)} cursos")
+            for curso in cursos:
+                print(f"  - {curso['curso']}: preguntas {curso['inicio']}-{curso['fin']} ({curso['total']} preguntas)")
+
+        print("=" * 50)
+
+        return course_structure, True, None
+
+    except Exception as e:
+        error_msg = f"Error al cargar archivo: {str(e)}"
+        print(f"ERROR: {error_msg}")
+        import traceback
+        traceback.print_exc()
+        return None, False, error_msg
+
+
+def calculateCourseStatistics(keyData, responsesData, courseStructure, questionsQuantity):
+    """
+    Calcula estadísticas por curso para cada estudiante
+
+    Parameters:
+    - keyData: DataFrame con las claves de respuesta
+    - responsesData: DataFrame con las respuestas de los estudiantes
+    - courseStructure: Diccionario con estructura de cursos por tema
+    - questionsQuantity: Cantidad total de preguntas
+
+    Returns:
+    - Tupla (stats_df, success, error_message)
+      - stats_df: DataFrame con estadísticas por curso
+      - success: bool
+      - error_message: str o None
+    """
+    try:
+        print("=" * 50)
+        print("CALCULANDO ESTADÍSTICAS POR CURSO")
+        print("=" * 50)
+
+        results = []
+        topics_without_config = set()
+
+        # Iterar por cada clave (tema)
+        for rowKey in keyData.itertuples():
+            topic = rowKey.topic.strip().upper()
+            key_responses = rowKey.keyResponses
+
+            # Verificar si el tema tiene configuración
+            if topic not in courseStructure:
+                topics_without_config.add(topic)
+                print(f"ADVERTENCIA: Tema '{topic}' no tiene configuración de cursos. Saltando...")
+                continue
+
+            # Obtener cursos de este tema
+            courses = courseStructure[topic]
+
+            # Iterar por cada respuesta de estudiante con este tema
+            for rowResponse in responsesData.itertuples():
+                if rowResponse.topic.strip().upper() != topic:
+                    continue
+
+                student_responses = rowResponse.responses
+                idTab = rowResponse.idTab
+
+                # Calcular estadísticas para cada curso
+                for course_info in courses:
+                    curso_name = course_info['curso']
+                    inicio = course_info['inicio'] - 1  # Ajustar a índice 0
+                    fin = course_info['fin']  # fin ya es inclusivo en el slice
+
+                    # Extraer respuestas y claves del rango del curso
+                    student_answers = student_responses[inicio:fin]
+                    correct_answers = key_responses[inicio:fin]
+
+                    # Contar estadísticas
+                    correctas = 0
+                    incorrectas = 0
+                    vacias = 0
+
+                    for i in range(len(student_answers)):
+                        if i >= len(correct_answers):
+                            break
+
+                        if correct_answers[i] == " ":
+                            # Pregunta inválida en la clave
+                            continue
+
+                        if student_answers[i] == correct_answers[i]:
+                            correctas += 1
+                        elif student_answers[i] == " ":
+                            vacias += 1
+                        else:
+                            incorrectas += 1
+
+                    total_preguntas = course_info['total']
+                    porcentaje = (correctas / total_preguntas * 100) if total_preguntas > 0 else 0
+
+                    # Agregar resultado
+                    results.append({
+                        'idTab': idTab,
+                        'topic': topic,
+                        'curso': curso_name,
+                        'correctas': correctas,
+                        'incorrectas': incorrectas,
+                        'vacias': vacias,
+                        'total_preguntas': total_preguntas,
+                        'porcentaje': round(porcentaje, 2)
+                    })
+
+        if topics_without_config:
+            warning_msg = f"Temas sin configuración: {', '.join(topics_without_config)}"
+            print(f"\nADVERTENCIA: {warning_msg}")
+
+        if not results:
+            error_msg = "No se generaron resultados. Verifique que los temas coincidan con la configuración."
+            print(f"ERROR: {error_msg}")
+            return None, False, error_msg
+
+        # Crear DataFrame
+        stats_df = pd.DataFrame(results)
+
+        print(f"\nEstadísticas calculadas: {len(stats_df)} registros")
+        print("=" * 50)
+
+        return stats_df, True, None
+
+    except Exception as e:
+        error_msg = f"Error al calcular estadísticas: {str(e)}"
+        print(f"ERROR: {error_msg}")
+        import traceback
+        traceback.print_exc()
+        return None, False, error_msg
+
+
+def mergeCourseStatsWithStudents(courseStats, identifierData, studentsData, courseStructure, processName,
+                                 parent_window=None):
+    """
+    Combina estadísticas por curso con datos de estudiantes y guarda en Excel
+
+    Parameters:
+    - courseStats: DataFrame con estadísticas por curso
+    - identifierData: DataFrame con identificadores
+    - studentsData: DataFrame con datos de estudiantes
+    - courseStructure: Diccionario con estructura de cursos (para hoja de referencia)
+    - processName: Nombre del proceso para el archivo
+    - parent_window: Ventana padre para diálogos
+
+    Returns:
+    - Tupla (success, filepath)
+    """
+    try:
+        print("=" * 50)
+        print("COMBINANDO DATOS Y GENERANDO ARCHIVO EXCEL")
+        print("=" * 50)
+
+        # Convertir DNI a string
+        identifierData['dni'] = identifierData['dni'].astype(str)
+        studentsData['DNI'] = studentsData['DNI'].astype(str)
+
+        # Combinar con identifier para obtener DNI
+        merged_with_id = pd.merge(
+            courseStats,
+            identifierData[['idTab', 'dni']],
+            on='idTab',
+            how='left'
+        )
+
+        # Combinar con students para obtener nombres y datos
+        final_data = pd.merge(
+            merged_with_id,
+            studentsData[['DNI', 'NOMBRES', 'APELLIDOS', 'CARRERA', 'AULA', 'GRUPO']],
+            left_on='dni',
+            right_on='DNI',
+            how='left'
+        )
+
+        # Reordenar columnas
+        column_order = ['DNI', 'NOMBRES', 'APELLIDOS', 'CARRERA', 'AULA', 'GRUPO', 'topic', 'curso',
+                        'correctas', 'incorrectas', 'vacias', 'total_preguntas', 'porcentaje']
+
+        existing_columns = [col for col in column_order if col in final_data.columns]
+        final_data = final_data[existing_columns]
+
+        # Ordenar datos
+        final_data = final_data.sort_values(by=['APELLIDOS', 'NOMBRES', 'topic', 'curso'])
+
+        # ========== PREPARAR HOJA 2: RESUMEN POR CURSO ==========
+        resumen = final_data.groupby(['topic', 'curso']).agg({
+            'correctas': 'mean',
+            'incorrectas': 'mean',
+            'vacias': 'mean',
+            'total_preguntas': 'first',
+            'DNI': 'count'
+        }).reset_index()
+
+        resumen.columns = ['Tema', 'Curso', 'Promedio_Correctas', 'Promedio_Incorrectas',
+                           'Promedio_Vacias', 'Total_Preguntas', 'Estudiantes_Analizados']
+
+        resumen['Promedio_Correctas'] = resumen['Promedio_Correctas'].round(2)
+        resumen['Promedio_Incorrectas'] = resumen['Promedio_Incorrectas'].round(2)
+        resumen['Promedio_Vacias'] = resumen['Promedio_Vacias'].round(2)
+
+        # ========== PREPARAR HOJA 3: ESTRUCTURA DE CURSOS ==========
+        estructura_list = []
+        for tema, cursos in courseStructure.items():
+            for curso_info in cursos:
+                estructura_list.append({
+                    'Tema': tema,
+                    'Curso': curso_info['curso'],
+                    'Pregunta_Inicio': curso_info['inicio'],
+                    'Pregunta_Fin': curso_info['fin'],
+                    'Total_Preguntas': curso_info['total']
+                })
+
+        estructura_df = pd.DataFrame(estructura_list)
+
+        # ========== GUARDAR ARCHIVO CON DIÁLOGO ==========
+        suggested_name = f"{processName}_AnalisisPorCurso.xlsx"
+        initial_dir = os.path.expanduser("~/Documents")
+
+        filepath = filedialog.asksaveasfilename(
+            parent=parent_window,
+            title="Guardar Análisis por Curso",
+            initialdir=initial_dir,
+            initialfile=suggested_name,
+            defaultextension=".xlsx",
+            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")]
+        )
+
+        if not filepath:
+            print("Usuario canceló el guardado")
+            return False, None
+
+        # Guardar en Excel con múltiples hojas
+        with pd.ExcelWriter(filepath, engine='openpyxl') as writer:
+            final_data.to_excel(writer, sheet_name='Resultados Detallados', index=False)
+            resumen.to_excel(writer, sheet_name='Resumen por Curso', index=False)
+            estructura_df.to_excel(writer, sheet_name='Estructura de Cursos', index=False)
+
+        print(f"\n✓ Archivo guardado exitosamente: {filepath}")
+        print(f"  - Hoja 1: Resultados Detallados ({len(final_data)} registros)")
+        print(f"  - Hoja 2: Resumen por Curso ({len(resumen)} cursos)")
+        print(f"  - Hoja 3: Estructura de Cursos ({len(estructura_df)} configuraciones)")
+        print("=" * 50)
+
+        return True, filepath
+
+    except Exception as e:
+        error_msg = f"Error al guardar archivo: {str(e)}"
+        print(f"ERROR: {error_msg}")
+        import traceback
+        traceback.print_exc()
+        return False, None

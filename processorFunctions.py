@@ -48,7 +48,7 @@ def openIdentifier(identifierFileDirection):
         return identifierData
 
 
-# Función para abrir y procesar el archivo identificador.
+# Función para abrir y procesar el archivo de respuestas.
 def openResponses(responsesFileDirection, questionsQuantity, tiebreakerQuestionsQuantity):
     responsesData = []
     # Abre el archivo en modo de lectura
@@ -140,6 +140,8 @@ def openKeys(keyFileDirection, questionsQuantity, tiebreakerQuestionsQuantity):
 def openStudentsData(studentsFileDirection):
     read = pd.read_excel(studentsFileDirection, dtype=str)
     read.columns = read.columns.str.strip().str.upper()
+    #print("Students Opened!: ", read)
+    #print("_______________________________________________")
     return read
     # print(studentsData)
 
@@ -150,7 +152,7 @@ def excecuteCalification(keyData, responsesData, questionsQuantity, correctAnswe
 
     for rowKey in keyData.itertuples():
         # print(f"Índice: {rowKey.Index}")  # El índice de la fila
-        print(f"Topic:{rowKey.topic} , KeyResponses:{rowKey.keyResponses} ")
+        #print(f"Topic:{rowKey.topic} , KeyResponses:{rowKey.keyResponses} ")
         for rowResponses in responsesData.itertuples():
             if (rowKey.topic == rowResponses.topic):
                 correct = 0
@@ -205,14 +207,15 @@ def excecuteCalification(keyData, responsesData, questionsQuantity, correctAnswe
                      tiebreaker_failed, tiebreaker_empty])
                 # print("************************")
 
-        print(".....................")
+        #print(".....................")
     print("Calification done!")
     return processData
 
 
 def contrastCalificationId(processData, identifierData):
     resultData = pd.merge(processData, identifierData, on='idTab', how='inner')
-    # print(resultData)
+    #print("Datos de resultado contrastando Calificacion con identificador: ",resultData)
+    #print("----------------------------------------------------------------")
     return resultData
 
 
@@ -1091,6 +1094,107 @@ def mergeCourseStatsWithStudents(courseStats, identifierData, studentsData, cour
     except Exception as e:
         error_msg = f"Error al guardar archivo: {str(e)}"
         print(f"ERROR: {error_msg}")
+        import traceback
+        traceback.print_exc()
+        return False, None
+
+
+# ==================== INCORRECT TOPIC DETECTION FUNCTIONS ====================
+
+def findIncorrectTopics(identifierData, responsesData):
+    """
+    Compara la columna 'topic' de identifierData con la columna 'topic' de
+    responsesData, cruzando ambos DataFrames por 'idTab'.
+
+    Parameters:
+    - identifierData: DataFrame con columnas ['idTab', 'topic', 'dni', ...]
+    - responsesData: DataFrame con columnas ['idTab', 'topic', 'responses', ...]
+
+    Returns:
+    - Tupla (mismatchDF, count)
+      - mismatchDF: DataFrame con el registro completo de los casos donde el
+        topic del identifier es distinto al topic de responses
+      - count: cantidad de casos encontrados
+    """
+    try:
+        print("=" * 50)
+        print("COMPARANDO TOPICS (Identifier vs Responses)")
+        print("=" * 50)
+
+        # Cruzar por idTab, conservando ambas columnas 'topic' con sufijos
+        merged = pd.merge(
+            identifierData,
+            responsesData,
+            on='idTab',
+            how='inner',
+            suffixes=('_identifier', '_responses')
+        )
+
+        # Filtrar los casos donde el topic difiere
+        mismatch = merged[
+            merged['topic_identifier'] != merged['topic_responses']
+            ].copy()
+
+        count = len(mismatch)
+
+        print(f"Total de fichas cruzadas: {len(merged)}")
+        print(f"Casos con topic incorrecto: {count}")
+        print("=" * 50)
+
+        return mismatch, count
+
+    except Exception as e:
+        print(f"\nERROR en findIncorrectTopics: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return None, 0
+
+
+def saveIncorrectTopicsReport(mismatchData, processName, parent_window=None):
+    """
+    Guarda en un archivo Excel el registro completo de los casos donde el
+    topic de Identifier es distinto al topic de Responses.
+
+    Parameters:
+    - mismatchData: DataFrame con los registros a guardar
+    - processName: Nombre del proceso para sugerir el nombre del archivo
+    - parent_window: Ventana padre para el diálogo (opcional)
+
+    Returns:
+    - Tupla (success: bool, filepath: str)
+    """
+    try:
+        print(f"\nAbriendo diálogo para guardar reporte de topics incorrectos...")
+
+        suggested_filename = f"{processName}_IncorrectTopics.xlsx"
+
+        initial_dir = os.path.expanduser("~/Documents")
+
+        filepath = filedialog.asksaveasfilename(
+            parent=parent_window,
+            title="Guardar Reporte de Topics Incorrectos",
+            initialdir=initial_dir,
+            initialfile=suggested_filename,
+            defaultextension=".xlsx",
+            filetypes=[
+                ("Excel files", "*.xlsx"),
+                ("All files", "*.*")
+            ]
+        )
+
+        if not filepath:
+            print("Usuario canceló el guardado")
+            return False, None
+
+        mismatchData.to_excel(filepath, sheet_name='Topics Incorrectos', index=False)
+
+        print(f"✓ Archivo guardado: {filepath}")
+        print(f"  - {len(mismatchData)} registros con topic incorrecto")
+
+        return True, filepath
+
+    except Exception as e:
+        print(f"\nERROR al guardar reporte de topics incorrectos: {str(e)}")
         import traceback
         traceback.print_exc()
         return False, None

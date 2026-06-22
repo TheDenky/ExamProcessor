@@ -1,4 +1,4 @@
-EXAM PROCESSOR v2.2
+EXAM PROCESSOR v2.4
 Centro Preuniversitario de la UNAJMA
 
 INSTRUCCIONES:
@@ -10,6 +10,6 @@ INSTRUCCIONES:
 
 SOPORTE:
 Email: denkyruben@gmail.com
-Teléfono: +51 900470001
+Teléfono: +51 921265841
 
 © 2026 ValleyTech

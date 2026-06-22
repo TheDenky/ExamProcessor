@@ -1,0 +1,7 @@
+Crear el .spec
+pyi-makespec --onefile --windowed --icon=img/EPicon.ico --add-data "img;img" --name "ExamProcessor_v2.4" app.py
+
+Crear el app
+pyinstaller ExamProcessor_v2.4.spec
+
+Usar app Inno Compiler para compilar la App Setup

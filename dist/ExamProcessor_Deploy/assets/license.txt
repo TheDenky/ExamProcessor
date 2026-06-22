@@ -1,5 +1,5 @@
 LICENCIA DE USO
-ExamProcessor v2.2
+ExamProcessor v2.4
 
 Este software es propiedad del Centro Preuniversitario de la UNAJMA.
 

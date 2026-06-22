@@ -17,7 +17,7 @@ try:
     app.iconbitmap("img/EPicon.ico")
 except:
     pass
-app.title("Exam Processor v2.2")
+app.title("Exam Processor v2.4")
 app.geometry("800x900")
 
 # Crear notebook
@@ -89,6 +89,10 @@ resultData = None
 attendanceReportData = None
 unmatchedScannerData = None
 attendanceContentVisible = False  # Estado del frame colapsable
+
+# Variable para la detección de topics incorrectos
+incorrectTopicData = None
+incorrectTopicContentVisible = False  # Estado del frame colapsable
 
 def updateDataCounters():
     """Actualiza los contadores de datos cargados"""
@@ -216,6 +220,7 @@ def clearAllFields():
 
     updateDataCounters()
     clearAttendanceData()  # Limpiar datos de asistencia
+    clearIncorrectTopicData()  # Limpiar datos de topics incorrectos
 
 
 def clearFinalScoreFields():
@@ -255,6 +260,7 @@ def selectIdentifier():
 
         updateDataCounters()
         clearAttendanceData()  # Limpiar reporte de asistencia al cambiar identifier
+        clearIncorrectTopicData()  # Limpiar comparación de topics al cambiar identifier
 
 
 def selectResponses():
@@ -281,11 +287,13 @@ def selectResponses():
             responsesField.insert(0, archivo)
 
         updateDataCounters()
+        clearIncorrectTopicData()  # Limpiar comparación de topics al cambiar responses
 
 
 def selectKey():
     global keyData
     archivo = filedialog.askopenfilename(
+
         title="Selecciona un archivo",
         filetypes=[("Archivos de datos", "*.dat"), ("Todos los archivos", "*.*")]
     )
@@ -759,6 +767,126 @@ def toggleAttendanceFrame():
         attendanceContentFrame.pack(fill=X, pady=5)
         toggleAttendanceBtn.config(text="▼")
         attendanceContentVisible = True
+
+
+# ==================== INCORRECT TOPIC DETECTION FUNCTIONS ====================
+
+def checkIncorrectTopics():
+    """Compara el topic de Identifier con el topic de Responses"""
+    global incorrectTopicData
+
+    try:
+        # Validar que ambos archivos estén cargados
+        if isinstance(identifierData, list) or identifierData.empty:
+            showMessage("¡ERROR!\nPor favor cargue el archivo Identifier primero.")
+            return
+
+        if isinstance(responsesData, list) or responsesData.empty:
+            showMessage("¡ERROR!\nPor favor cargue el archivo Responses primero.")
+            return
+
+        # Validar que tengan las columnas necesarias
+        if 'topic' not in identifierData.columns:
+            showMessage("¡ERROR!\nEl archivo Identifier no tiene la columna 'topic'.")
+            return
+
+        if 'topic' not in responsesData.columns:
+            showMessage("¡ERROR!\nEl archivo Responses no tiene la columna 'topic'.")
+            return
+
+        print("Comparando topics de Identifier y Responses...")
+
+        # Llamar a la función de procesamiento
+        incorrectTopicData, count = processorFunctions.findIncorrectTopics(
+            identifierData,
+            responsesData
+        )
+
+        if incorrectTopicData is None:
+            showMessage("¡ERROR!\nNo se pudo comparar los topics.")
+            return
+
+        if count > 0:
+            downloadIncorrectTopicButton.config(state="normal")
+            showMessage(
+                f"¡Comparación realizada!\n\n"
+                f"Se encontraron {count} caso(s) donde el topic de Identifier "
+                f"no coincide con el topic de Responses."
+            )
+        else:
+            downloadIncorrectTopicButton.config(state="disabled")
+            showMessage("¡Comparación realizada!\n\nNo se encontraron casos con topic incorrecto.")
+
+    except Exception as e:
+        error_message = f"Error al comparar topics:\n\n{str(e)}"
+        print(f"ERROR: {error_message}")
+        showMessage(error_message)
+        incorrectTopicData = None
+        downloadIncorrectTopicButton.config(state="disabled")
+
+
+def downloadIncorrectTopics():
+    """Descarga el registro completo de los casos con topic incorrecto"""
+    global incorrectTopicData, processName, processYear
+
+    try:
+        # Validar que exista el resultado
+        if incorrectTopicData is None or incorrectTopicData.empty:
+            showMessage("¡ERROR!\nPor favor revise los topics primero.")
+            return
+
+        # Construir nombre del proceso
+        fullProcessName = f"{processName}_{processYear}"
+
+        print("Guardando reporte de topics incorrectos...")
+
+        # Llamar a la función de guardado con diálogo
+        success, filepath = processorFunctions.saveIncorrectTopicsReport(
+            incorrectTopicData,
+            fullProcessName,
+            app
+        )
+
+        if success and filepath:
+            import os
+            filename = os.path.basename(filepath)
+            msg = (f"¡Éxito!\n\n"
+                   f"Archivo guardado:\n{filename}\n\n"
+                   f"En:\n{os.path.dirname(filepath)}")
+            showMessage(msg)
+        elif not success and filepath is None:
+            # Usuario canceló
+            pass
+        else:
+            showMessage("¡ERROR!\nNo se pudo guardar el archivo.")
+
+    except Exception as e:
+        error_message = f"Error al guardar reporte:\n\n{str(e)}"
+        print(f"ERROR: {error_message}")
+        showMessage(error_message)
+
+
+def clearIncorrectTopicData():
+    """Limpia los datos de detección de topics incorrectos y resetea la UI"""
+    global incorrectTopicData
+    incorrectTopicData = None
+    downloadIncorrectTopicButton.config(state="disabled")
+
+
+def toggleIncorrectTopicFrame():
+    """Muestra u oculta el contenido del Incorrect Topic Detection Frame"""
+    global incorrectTopicContentVisible
+
+    if incorrectTopicContentVisible:
+        # Ocultar contenido
+        incorrectTopicContentFrame.pack_forget()
+        toggleIncorrectTopicBtn.config(text="▶")
+        incorrectTopicContentVisible = False
+    else:
+        # Mostrar contenido
+        incorrectTopicContentFrame.pack(fill=X, pady=5)
+        toggleIncorrectTopicBtn.config(text="▼")
+        incorrectTopicContentVisible = True
 
 
 # ==================== COURSE ANALYSIS FUNCTIONS ====================
@@ -1378,6 +1506,77 @@ downloadAttendanceButton = ttk.Button(
 )
 downloadAttendanceButton.pack(side=LEFT, padx=5)
 
+# ============= INCORRECT TOPIC DETECTION FRAME (COLAPSABLE) =============
+
+# Frame principal contenedor
+incorrectTopicControlFrame = ttk.Frame(tab2)
+incorrectTopicControlFrame.pack(fill=X, padx=20, pady=10)
+
+# Frame del header con título y botón toggle
+incorrectTopicHeaderFrame = ttk.Frame(incorrectTopicControlFrame, relief="raised", borderwidth=1)
+incorrectTopicHeaderFrame.pack(fill=X)
+
+# Botón toggle (▼/▶)
+toggleIncorrectTopicBtn = ttk.Button(
+    incorrectTopicHeaderFrame,
+    text="▶",
+    width=3,
+    bootstyle="link",
+    command=toggleIncorrectTopicFrame
+)
+toggleIncorrectTopicBtn.pack(side=LEFT, padx=5, pady=5)
+
+# Label del título
+ttk.Label(
+    incorrectTopicHeaderFrame,
+    text="Incorrect Topic Detection",
+    font=("Helvetica", 11, "bold"),
+    bootstyle="primary"
+).pack(side=LEFT, pady=5)
+
+# Frame del contenido (colapsable)
+incorrectTopicContentFrame = ttk.Frame(incorrectTopicControlFrame, relief="sunken", borderwidth=1)
+# incorrectTopicContentFrame.pack(fill=X, pady=(0, 0))
+
+# Padding interno
+incorrectTopicInnerFrame = ttk.Frame(incorrectTopicContentFrame)
+incorrectTopicInnerFrame.pack(fill=X, padx=10, pady=10)
+
+ttk.Label(
+    incorrectTopicInnerFrame,
+    text="Compara el 'topic' de Identifier contra el 'topic' de Responses\n"
+         "(cruzando por idTab) y reporta los casos donde no coinciden.",
+    font=("Helvetica", 10),
+    wraplength=650,
+    justify=LEFT
+).pack(anchor=W, pady=5)
+
+# Separador
+ttk.Separator(incorrectTopicInnerFrame, orient='horizontal').pack(fill=X, pady=10)
+
+# Frame para botones
+buttonsIncorrectTopicFrame = ttk.Frame(incorrectTopicInnerFrame)
+buttonsIncorrectTopicFrame.pack(fill=X, pady=5)
+
+checkIncorrectTopicButton = ttk.Button(
+    buttonsIncorrectTopicFrame,
+    text="CHECK TOPICS",
+    bootstyle="info-outline",
+    width=20,
+    command=checkIncorrectTopics
+)
+checkIncorrectTopicButton.pack(side=LEFT, padx=5)
+
+downloadIncorrectTopicButton = ttk.Button(
+    buttonsIncorrectTopicFrame,
+    text="DOWNLOAD MISMATCHES",
+    bootstyle="success-outline",
+    width=20,
+    command=downloadIncorrectTopics,
+    state="disabled"  # Deshabilitado inicialmente
+)
+downloadIncorrectTopicButton.pack(side=LEFT, padx=5)
+
 # Create frame for scanner files
 scannerFrame = ttk.LabelFrame(
     tab2,
@@ -1764,7 +1963,7 @@ aboutMainFrame.pack(fill=BOTH, expand=True, padx=40, pady=20)
 infoFrame = ttk.LabelFrame(aboutMainFrame, text="Software Information")
 infoFrame.pack(fill=X, pady=10, ipadx=20, ipady=20)
 
-versionLabel = ttk.Label(infoFrame, text="Version: 2.2", font=("Helvetica", 12, "bold"))
+versionLabel = ttk.Label(infoFrame, text="Version: 2.4", font=("Helvetica", 12, "bold"))
 versionLabel.pack(anchor=W, pady=5)
 
 devLabel = ttk.Label(infoFrame, text="Desarrollado en: Informática Cepre", font=("Helvetica", 12))
